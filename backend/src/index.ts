@@ -15,6 +15,7 @@ import subscriptionRouter from "./routes/subscriptionRoutes";
 import adminRouter from "./routes/adminRoutes";
 import supportRouter from "./routes/supportRoutes";
 import announcementRouter from "./routes/announcementRoutes";
+import blogRoutes from "./routes/blog.routes";
 
 dotenv.config();
 
@@ -53,6 +54,7 @@ app.use('/api/v1/subscriptions', subscriptionRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/support', supportRouter);
 app.use('/api/v1/announcements', announcementRouter);
+app.use('/api/v1/blog', blogRoutes);
 
 httpServer.listen(PORT as number, "0.0.0.0", () => {
   console.info(`Socket.io & Server running on port ${PORT}`);
