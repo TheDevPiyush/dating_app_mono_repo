@@ -1,13 +1,18 @@
 import Image from "next/image";
-export const revalidate = 3600; 
+
 
 export default async function Page() {
 
-    const blogs = await fetch('http://api.pookiey.com/api/v1/blog/blogs', {
-        method: 'GET',
-        // cache: 'no-store',
-    }).then(res => res.json()).then(data => data.blogs)
-    .catch(error => {
+const blogs = await fetch(
+    "http://api.pookiey.com/api/v1/blog/blogs",
+    {
+        method: "GET",
+        next: { revalidate: 60 }, 
+    }
+    )
+    .then((res) => res.json())
+    .then((data) => data.blogs)
+    .catch(() => {
         return [];
     });
 
