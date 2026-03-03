@@ -49,58 +49,49 @@ export const metadata: Metadata = {
 
 const heroSlidesMobile = [
   {
-    src: "https://pookiey.s3.amazonaws.com/websiteImages/WhatsApp%20Image%202026-01-21%20at%208.15.19%20PM.jpeg",
-    alt: "Pookiey couple sharing a joyful moment",
+    "url": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-modern-dating-app.jpg",
+    "alt": "Pookiey modern dating app interface for finding meaningful connections"
   },
   {
-    src: "https://pookiey.s3.amazonaws.com/websiteImages/WhatsApp%20Image%202026-01-21%20at%208.15.20%20PM.jpeg",
-    alt: "Romantic candid moment captured on WhatsApp",
+    "url": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-start-your-love-story.jpg",
+    "alt": "Start your love story with Pookiey online dating platform"
   },
   {
-    src: "https://pookiey.s3.amazonaws.com/websiteImages/WhatsApp%20Image%202026-01-21%20at%209.30.48%20PM.jpeg",
-    alt: "Evening memories filled with smiles and warmth",
+    "url": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-meet-new-people.jpg",
+    "alt": "Meet new people and build real relationships on Pookiey dating app"
   },
   {
-    src: "https://pookiey.s3.amazonaws.com/websiteImages/WhatsApp%20Image%202026-01-23%20at%209.17.17%20AM.jpeg",
-    alt: "Morning vibes with happy expressions",
+    "url": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-fun-online-dating.jpg",
+    "alt": "Fun and engaging online dating experience with Pookiey"
   },
   {
-    src: "https://pookiey.s3.amazonaws.com/websiteImages/WhatsApp%20Image%202026-01-25%20at%202.41.59%20PM%20(1).jpeg",
-    alt: "Fun afternoon moments captured naturally",
-  },
-  {
-    src: "https://pookiey.s3.amazonaws.com/websiteImages/WhatsApp%20Image%202026-01-25%20at%202.41.59%20PM.jpeg",
-    alt: "Casual lifestyle moment with cheerful mood",
-  },
-  {
-    src: "https://pookiey.s3.amazonaws.com/websiteImages/WhatsApp%20Image%202026-01-25%20at%202.48.16%20PM.jpeg",
-    alt: "Candid happiness shared between loved ones",
-  },
-  {
-    src: "https://pookiey.s3.amazonaws.com/websiteImages/WhatsApp%20Image%202026-01-26%20at%207.38.59%20AM.jpeg",
-    alt: "Early morning smiles and positive energy",
-  },
-  
-];
+    "url": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-swipe-match-chat.jpg",
+    "alt": "Swipe, match and chat securely on Pookiey dating app"
+  }
+]
 
-const heroSlidesDesktop = [
+const heroSlidesDesktop =[
   {
-    src: "https://pookiey.s3.amazonaws.com/websiteImages/1.png",
-    alt: "Pookiey app interface showcasing modern dating experience",
+    "url": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-modern-dating-app.jpg",
+    "alt": "Pookiey modern dating app interface for finding meaningful connections"
   },
   {
-    src: "https://pookiey.s3.amazonaws.com/websiteImages/2.png",
-    alt: "Discover meaningful connections with Pookiey platform",
+    "url": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-start-your-love-story.jpg",
+    "alt": "Start your love story with Pookiey online dating platform"
   },
   {
-    src: "https://pookiey.s3.amazonaws.com/websiteImages/3.png",
-    alt: "User-friendly Pookiey design highlighting social interactions",
+    "url": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-meet-new-people.jpg",
+    "alt": "Meet new people and build real relationships on Pookiey dating app"
   },
   {
-    src: "https://pookiey.s3.amazonaws.com/websiteImages/4.png",
-    alt: "Engaging Pookiey features built for real connections",
+    "url": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-fun-online-dating.jpg",
+    "alt": "Fun and engaging online dating experience with Pookiey"
   },
-];
+  {
+    "url": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-swipe-match-chat.jpg",
+    "alt": "Swipe, match and chat securely on Pookiey dating app"
+  }
+]
 
 const features = [
   {
