@@ -19,6 +19,7 @@ export const Page = async ({ params }: PageProps) => {
     const res = await fetch(`http://api.pookiey.com/api/v1/blog/blogs/${slug}`, {
         method: 'GET',
         // cache: 'no-store', 
+        next: { revalidate: 60 }, // Revalidate every minute
     });
 
     const data = await res.json();
