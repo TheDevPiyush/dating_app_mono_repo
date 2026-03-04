@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 
 export default async function Page() {
@@ -72,15 +73,25 @@ const blogs = await fetch(
                                     <p className="text-gray-600 mb-4 line-clamp-3">
                                         {blog.excerpt}
                                     </p>
-                                    <a 
-                                        href={`/blog/${blog.slug}`} 
+                                    <Link
+                                        href={`/blog/${blog.slug}`}
                                         className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
-                                    >
-                                        Read More 
-                                        <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        >
+                                        Read More
+                                        <svg
+                                            className="w-4 h-4 ml-2"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M9 5l7 7-7 7"
+                                            />
                                         </svg>
-                                    </a>
+                                    </Link>
                                 </div>
                             </article>
                         );
