@@ -101,4 +101,4 @@ src/
 
 - Razorpay errors are surfaced in the API response; consider piping them to your logging solution (e.g. Datadog, Sentry).
 - Mongo collections now rely on additional indexes; run `npm run build` once before deploying to ensure Mongoose creates them.
-- The architecture is provider-agnostic: plug in webhooks and retry strategies by extending `subscriptionService`.
+- The architecture is provider-agnostic: plug in webhooks and retry strategies by extending `subscriptionService`...
