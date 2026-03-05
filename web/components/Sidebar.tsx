@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { X, Home, Info, MessageSquare, Users, HelpCircle, LogIn, LogOut } from "lucide-react";
+import { X, Home, Info, MessageSquare, Users, HelpCircle, LogIn, LogOut, Rss } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react";
@@ -32,8 +32,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   };
 
   const navigation = [
+    { name: "Privacy Policy", href: "/privacy-policy", icon: Info },
     { name: "About Us", href: "/about-us", icon: Users },
     { name: "Support", href: "/support", icon: HelpCircle },
+    { name: "Blog", href: "/blog", icon: Rss },
   ];
 
   if (!mounted) return null;

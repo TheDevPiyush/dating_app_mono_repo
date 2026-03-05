@@ -52,7 +52,7 @@ export default function HeroCarousel({ slides }: { slides: Slide[] }) {
           {slides.map((s) => (
             <CarouselItem key={s.src} className="pl-0">
               <div className="relative h-[50vh] w-full sm:h-[55vh] md:h-[65vh] lg:h-screen">
-                <img src={s.src} alt={s.alt} className="h-full w-full object-cover" />
+                <img src={s.src} alt={s.alt} className="h-full w-full " />
                 <div className="absolute inset-0 bg-linear-to-t from-black/50 via-black/10 to-transparent" />
               </div>
             </CarouselItem>

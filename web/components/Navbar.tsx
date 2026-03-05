@@ -153,7 +153,16 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
             
-            
+            <Link
+              href="/privacy-policy"
+              className={`text-sm  transition-colors font-bold ${
+                pathname === "/privacy-policy"
+                  ? "text-[#E94057]"
+                  : "text-white hover:text-[#E94057]"
+              }`}
+            >
+              Privacy Policy
+            </Link>
             <Link
               href="/about-us"
               className={`text-sm  transition-colors font-bold ${
@@ -163,6 +172,16 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
               }`}
             >
               About Us
+            </Link>
+            <Link
+              href="/blog"
+              className={`text-sm  transition-colors font-bold ${
+                pathname === "/blog"
+                  ? "text-[#E94057]"
+                  : "text-white hover:text-[#E94057]"
+              }`}
+            >
+              Blogs
             </Link>
             <Link
               href="/support"

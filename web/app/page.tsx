@@ -49,24 +49,24 @@ export const metadata: Metadata = {
 
 const heroSlidesMobile = [
   {
-    "src": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-modern-dating-app.jpg",
-    "alt": "Pookiey modern dating app interface for finding meaningful connections"
+    "src": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-maincharacter-energy.jpg",
+    "alt": "Pookiey dating app main character energy vibe for confident modern singles"
   },
   {
-    "src": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-start-your-love-story.jpg",
-    "alt": "Start your love story with Pookiey online dating platform"
+    "src": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-your-love-era.jpg",
+    "alt": "Enter your love era with Pookiey modern online dating platform"
   },
   {
-    "src": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-meet-new-people.jpg",
-    "alt": "Meet new people and build real relationships on Pookiey dating app"
+    "src": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-its-a-match-bestie.jpg",
+    "alt": "It’s a match bestie moment on Pookiey swipe and chat dating app"
   },
   {
-    "src": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-fun-online-dating.jpg",
-    "alt": "Fun and engaging online dating experience with Pookiey"
+    "src": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-good-vibes-only.jpg",
+    "alt": "Good vibes only fun and safe online dating experience with Pookiey"
   },
   {
-    "src": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-swipe-match-chat.jpg",
-    "alt": "Swipe, match and chat securely on Pookiey dating app"
+    "src": "https://pookiey.s3.amazonaws.com/websiteImages/pookiey-expand-your-circle.jpg",
+    "alt": "Expand your circle and meet new people on Pookiey dating platform"
   }
 ]
 

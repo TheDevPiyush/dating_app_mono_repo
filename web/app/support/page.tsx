@@ -155,7 +155,7 @@ export default function SupportPage() {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         
         if (!currentSession) {
-          router.push("/");
+          router.push("/auth");
           return;
         }
         
