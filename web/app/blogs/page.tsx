@@ -74,7 +74,7 @@ const blogs = await fetch(
                                         {blog.excerpt}
                                     </p>
                                     <Link
-                                        href={`/blog/${blog.slug}`}
+                                        href={`/blogs/${blog.slug}`}
                                         className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
                                         >
                                         Read More

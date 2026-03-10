@@ -119,7 +119,7 @@ export const Page = async ({ params }: PageProps) => {
                 <footer className="mt-8 pt-6 border-t border-gray-200">
                     <div className="flex items-center justify-between">
                         <a 
-                            href="/blog" 
+                            href="/blogs" 
                             className="inline-flex items-center text-blue-600 hover:text-blue-800"
                         >
                             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

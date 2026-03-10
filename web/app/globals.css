@@ -116,3 +116,18 @@ body {
 .animation-delay-1500 {
   animation-delay: 1.5s;
 }
+
+
+@layer components {
+  .footer-link {
+    @apply text-sm text-gray-600 hover:text-pink-600 transition-colors duration-200;
+  }
+  
+  .social-icon {
+    @apply w-6 h-6 text-gray-600 hover:text-pink-600 transition-colors duration-200;
+  }
+  
+  .footer-heading {
+    @apply text-lg font-semibold mb-4 text-gray-800;
+  }
+}
