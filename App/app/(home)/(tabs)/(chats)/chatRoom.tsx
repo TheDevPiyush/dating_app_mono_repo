@@ -899,7 +899,7 @@ export default function ChatRoom() {
               text: 'Buy Premium',
               onPress: () => {
                 setDialogVisible(false);
-                router.push('/(home)/pricePlansHome');
+                router.push('/(home)/subscriptionScreenHome');
               },
             }
             : {

@@ -10,6 +10,7 @@ import { useDeepLinking } from '@/hooks/useDeepLinking';
 import { Colors } from '@/constants/Colors';
 import '@/config/i18n';
 import { StatusBar } from 'react-native';
+import * as ScreenCapture from 'expo-screen-capture';
 
 // Configure Paper theme to match app colors and fonts
 const paperTheme = {
@@ -109,6 +110,7 @@ const paperTheme = {
 
 SplashScreen.preventAutoHideAsync();
 
+
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     HellixBold: require('../assets/fonts/Hellix-Bold.ttf'),
@@ -117,7 +119,7 @@ export default function RootLayout() {
     HellixRegularItalic: require('../assets/fonts/Hellix-RegularItalic.ttf'),
   });
 
-  const { setupAuthListener, getInitialSession } = useAuthStore();
+  const { setupAuthListener, getInitialSession, dbUser } = useAuthStore();
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -127,6 +129,20 @@ export default function RootLayout() {
 
     initializeAuth();
   }, []);
+
+  useEffect(() => {
+    const screenShotAllow = async () => {
+      if (dbUser?.isAdmin) {
+        await ScreenCapture.allowScreenCaptureAsync();
+      }
+      else {
+        await ScreenCapture.preventScreenCaptureAsync();
+      }
+    }
+
+    screenShotAllow();
+
+  }, [dbUser])
 
   useDeepLinking();
 

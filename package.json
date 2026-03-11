@@ -4,9 +4,13 @@
         "backend": "cd backend && npm run dev",
         "web": "cd web && npm run dev",
         "mobile": "echo \"**Need dev build app installed already**\" && cd App && npx expo start --dev-client -c --port 8082",
-        "/* ----- Commands for EAS build ----- */": "",
-        "eas:preview": "cd App && eas build --platform android --profile preview",
-        "eas:production": "cd App && eas build --platform android --profile production",
-        "eas:dev": "cd App && eas build --platform android --profile development"
+        "/* ----- Commands for Android EAS build ----- */": "",
+        "android:preview": "cd App && eas build --platform android --profile preview",
+        "android:production": "cd App && eas build --platform android --profile production",
+        "android:dev": "cd App && eas build --platform android --profile development",
+        "/* ----- Commands for iOS EAS build ----- */": "",
+        "ios:preview": "cd App && eas build --platform ios --profile preview",
+        "ios:production": "cd App && eas build --platform ios --profile production",
+        "ios:dev": "cd App && eas build --platform ios --profile development"
     }
 }

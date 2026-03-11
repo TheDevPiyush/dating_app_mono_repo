@@ -22,6 +22,7 @@ import CustomDialog, { DialogType } from '@/components/CustomDialog'
 import { getActiveAnnouncementAPI } from '@/APIs/announcementAPIs'
 import { useAuth } from '@/hooks/useAuth'
 import CircularLoader from '@/components/CircularLoader'
+import { supabase } from '@/config/supabaseConfig'
 
 export default function index() {
   const { t } = useTranslation();
@@ -53,6 +54,15 @@ export default function index() {
   const { setCategorizedStories, setLoading: setStoryLoading } = useStoryStore()
   const { dbUser, setDBUser, addNotificationToken, getNotificationTokens } = useAuthStore()
 
+  // const getToken = async () => {
+  //   const { data } = await supabase.auth.getSession()
+  //   console.log(data.session?.access_token)
+  // };
+  // useEffect(() => {
+  //   // console.log("hello")
+  //   getToken();
+  // }, [profiles])
+
   const updateLocationInApi = useCallback(
     async (coords: { latitude: number; longitude: number }, city?: string) => {
       if (!idToken) return
@@ -77,7 +87,7 @@ export default function index() {
 
         lastLocationSentRef.current = signature
       } catch (e) {
-        console.error('Home: failed to update location in API:', e)
+        console.info('Home: failed to update location in API:', e)
       }
     },
     [idToken, setDBUser, updateUser],
@@ -101,7 +111,7 @@ export default function index() {
 
         lastPushTokenSentRef.current = pushToken
       } catch (e) {
-        console.error('Home: failed to update notification token in API:', e)
+        console.info('Home: failed to update notification token in API:', e)
       }
     },
     [dbUser, getNotificationTokens, idToken, setDBUser, updateUser],
@@ -221,7 +231,7 @@ export default function index() {
       userDismissedAlertRef.current = false
       lastPermissionStateRef.current = 'granted'
     } catch (error) {
-      console.error('Home: error ensuring permissions:', error)
+      // console.error('Home: error ensuring permissions:', error)
       setPermissionError('Could not request permissions. Please try again.')
       setPermissionsChecked(false)
     } finally {
@@ -638,7 +648,7 @@ export default function index() {
 
           <ThemedText type='title' style={{ color: Colors.primaryBackgroundColor }}>{t('home.discover')}</ThemedText>
 
-          <TouchableOpacity onPress={handleRefreshProfiles}>
+          <TouchableOpacity onPress={()=>{router.push("/subscriptionScreen")}}>
             <Ionicons name="refresh-outline" size={24} color={Colors.primary.red} />
           </TouchableOpacity>
         </View>

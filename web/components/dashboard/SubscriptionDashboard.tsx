@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatDistance, format } from "date-fns";
 import { useSupabaseClient, useUser } from "@supabase/auth-helpers-react";
 import {
@@ -130,6 +130,34 @@ export default function SubscriptionDashboard() {
     }
   };
 
+  useEffect(() => {
+    const hash = window.location.hash;
+
+    if (hash) {
+      const el = document.querySelector(hash);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+  }, []);
+
+  // Auto-scroll to payment plans when user is redirected from mobile app
+  useEffect(() => {
+    const isRedirect = sessionStorage.getItem("auto-login-redirect");
+    if (!isRedirect) return;
+
+    if (plans.data && plans.data.length > 0) {
+      sessionStorage.removeItem("auto-login-redirect");
+      const el = document.getElementById("payment-plans");
+      if (el) {
+        requestAnimationFrame(() => {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      }
+    }
+  }, [plans.data]);
+
+
   const amountToINR = (amountInPaise: number) =>
     new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -243,8 +271,8 @@ export default function SubscriptionDashboard() {
               <dd className="mt-1 text-base font-semibold text-[#2A1F2D]">
                 {snapshotEndDate
                   ? `In ${formatDistance(snapshotEndDate, new Date(), {
-                      addSuffix: false,
-                    })}`
+                    addSuffix: false,
+                  })}`
                   : "—"}
               </dd>
             </div>
@@ -308,6 +336,7 @@ export default function SubscriptionDashboard() {
           <div>
             <h2 className="text-2xl font-semibold text-[#2A1F2D]">
               Choose the plan to match your vibe
+              <a href="/dashboard#payment-plans">try</a>
             </h2>
             <p className="text-sm text-[#6F6077]">
               Switch plans anytime — payments happen securely through Razorpay.
@@ -315,68 +344,68 @@ export default function SubscriptionDashboard() {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <div id="payment-plans" className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {plans.data
             ?.filter((plan) => plan.id !== "free")
             .map((plan) => (
-            <article
-              key={plan.id}
-              className="group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-white/60 bg-white/80 p-6 shadow-lg shadow-[#E94057]/10 transition duration-300 hover:-translate-y-1 hover:shadow-2xl"
-            >
-              <div className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-100">
-                <div className="absolute inset-0 bg-gradient-to-br from-[#E94057]/12 via-transparent to-[#4B164C]/12" />
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#B49CC4]">
-                    {plan.title}
-                  </p>
-                  {plan.id === "premium" && (
-                    <span className="pill bg-[#E94057]/10 text-[#E94057]">
-                      Most loved
-                    </span>
-                  )}
-                </div>
-                <p className="text-3xl font-semibold text-[#2A1F2D]">
-                  {amountToINR(plan.amountInPaise)}
-                  <span className="text-sm font-normal text-[#6F6077]">
-                    {" "}
-                    · {plan.durationDays} days
-                    {typeof plan.interaction_per_day === "number" &&
-                      plan.interaction_per_day > 0 && (
-                        <> · {plan.interaction_per_day} interactions/day</>
-                      )}
-                  </span>
-                </p>
-                <ul className="space-y-2 text-sm text-[#6F6077]">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-2">
-                      <span
-                        aria-hidden
-                        className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#E94057]/15 text-xs text-[#E94057]"
-                      >
-                        ✓
-                      </span>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <button
-                onClick={() => handleCheckout(plan)}
-                disabled={
-                  !isRazorpayReady ||
-                  isProcessing ||
-                  Boolean(processingPlanId && processingPlanId !== plan.id)
-                }
-                className="mt-6 inline-flex items-center justify-center rounded-2xl bg-[#2A1F2D] px-4 py-3 text-sm font-semibold text-white shadow-md shadow-[#2A1F2D]/20 transition hover:scale-[1.01] hover:bg-[#201523] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E94057] disabled:cursor-not-allowed disabled:opacity-60"
+              <article
+                key={plan.id}
+                className="group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-white/60 bg-white/80 p-6 shadow-lg shadow-[#E94057]/10 transition duration-300 hover:-translate-y-1 hover:shadow-2xl"
               >
-                {isProcessing && processingPlanId === plan.id
-                  ? "Processing..."
-                  : "Choose plan"}
-              </button>
-            </article>
-          ))}
+                <div className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-100">
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#E94057]/12 via-transparent to-[#4B164C]/12" />
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#B49CC4]">
+                      {plan.title}
+                    </p>
+                    {plan.id === "premium" && (
+                      <span className="pill bg-[#E94057]/10 text-[#E94057]">
+                        Most loved
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-3xl font-semibold text-[#2A1F2D]">
+                    {amountToINR(plan.amountInPaise)}
+                    <span className="text-sm font-normal text-[#6F6077]">
+                      {" "}
+                      · {plan.durationDays} days
+                      {typeof plan.interaction_per_day === "number" &&
+                        plan.interaction_per_day > 0 && (
+                          <> · {plan.interaction_per_day} interactions/day</>
+                        )}
+                    </span>
+                  </p>
+                  <ul className="space-y-2 text-sm text-[#6F6077]">
+                    {plan.features.map((feature) => (
+                      <li key={feature} className="flex items-center gap-2">
+                        <span
+                          aria-hidden
+                          className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#E94057]/15 text-xs text-[#E94057]"
+                        >
+                          ✓
+                        </span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <button
+                  onClick={() => handleCheckout(plan)}
+                  disabled={
+                    !isRazorpayReady ||
+                    isProcessing ||
+                    Boolean(processingPlanId && processingPlanId !== plan.id)
+                  }
+                  className="mt-6 inline-flex items-center justify-center rounded-2xl bg-[#2A1F2D] px-4 py-3 text-sm font-semibold text-white shadow-md shadow-[#2A1F2D]/20 transition hover:scale-[1.01] hover:bg-[#201523] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E94057] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isProcessing && processingPlanId === plan.id
+                    ? "Processing..."
+                    : "Choose plan"}
+                </button>
+              </article>
+            ))}
         </div>
       </section>
 
@@ -421,13 +450,12 @@ export default function SubscriptionDashboard() {
                     </td>
                     <td className="whitespace-nowrap px-5 py-4 text-sm capitalize text-[#6F6077]">
                       <span
-                        className={`pill ${
-                          payment.status === "captured"
+                        className={`pill ${payment.status === "captured"
                             ? "bg-emerald-100 text-emerald-700"
                             : payment.status === "failed"
                               ? "bg-rose-100 text-rose-700"
                               : "bg-[#E94057]/10 text-[#E94057]"
-                        }`}
+                          }`}
                       >
                         {payment.status}
                       </span>

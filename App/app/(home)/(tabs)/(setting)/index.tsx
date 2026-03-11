@@ -59,7 +59,7 @@ const Settings = () => {
       router.push('/(home)/(tabs)/(setting)/privacyPolicy')
     }
     if (buttonName === 'Price Plans') {
-      router.push('/(home)/(tabs)/(setting)/pricePlans')
+      router.push('/(home)/(tabs)/(setting)/subscriptionScreenSettings')
     }
   }
 
@@ -253,7 +253,7 @@ const Settings = () => {
               style={[styles.settingItem, isSubscriptionActive && styles.subscriptionItem]}
               onPress={() => handleButtonPress('Price Plans')}
               activeOpacity={0.7}
-              disabled={isSubscriptionActive}
+              disabled={!isSubscriptionActive}
             >
               <View style={styles.settingIconContainer}>
                 <AntDesign name="crown" size={24} color={Colors.primary.red} />

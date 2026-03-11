@@ -11,6 +11,7 @@ export default function _layout() {
                 <Stack.Screen name="userProfile" options={{ presentation: 'fullScreenModal' }} />
                 <Stack.Screen name="annoucements" options={{ presentation: 'fullScreenModal' }} />
                 <Stack.Screen name="pricePlansHome" options={{ presentation: 'fullScreenModal' }} />
+                <Stack.Screen name="subscriptionScreen" options={{ presentation: 'fullScreenModal' }} />
             </Stack>
         </CallProvider>
     )

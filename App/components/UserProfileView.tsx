@@ -28,42 +28,6 @@ import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
-// Default mock data for testing
-const DEFAULT_MOCK_USER: DBUser = {
-  user_id: 'mock_user_1',
-  email: 'jessica@example.com',
-  displayName: 'Jessica Parker',
-  photoURL: 'https://i.pravatar.cc/400?img=1',
-  provider: 'email',
-  isEmailVerified: true,
-  isPhoneVerified: false,
-  status: 'active',
-  createdAt: new Date(),
-  updatedAt: new Date(),
-  profile: {
-    firstName: 'Jessica',
-    lastName: 'Parker',
-    dateOfBirth: new Date('2001-05-15'),
-    gender: 'female',
-    bio: 'My name is Jessica Parker and I enjoy meeting new people and finding ways to help them have an uplifting experience. I enjoy reading, traveling, and exploring new cultures. Life is an adventure and I\'m here to make the most of it!',
-    location: {
-      type: 'Point',
-      coordinates: [-87.6298, 41.8781],
-      city: 'Chicago',
-      country: 'United States'
-    },
-    photos: [
-      { url: 'https://i.pravatar.cc/400?img=1', isPrimary: true, uploadedAt: new Date() },
-      { url: 'https://i.pravatar.cc/400?img=2', uploadedAt: new Date() },
-      { url: 'https://i.pravatar.cc/400?img=3', uploadedAt: new Date() },
-      { url: 'https://i.pravatar.cc/400?img=4', uploadedAt: new Date() }
-    ],
-    interests: ['Travelling', 'Books', 'Music', 'Dancing', 'Modeling'],
-    occupation: 'Professional model',
-    isOnboarded: true
-  }
-}
-
 interface UserProfileViewProps {
   user: DBUser | null
   onLike?: () => void
@@ -83,7 +47,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({ user, onMessage }) =>
   const { token } = useAuth()
   const { likeUser, dislikeUser, superlikeUser } = useUserInteraction()
 
-  const displayUser = user || DEFAULT_MOCK_USER
+  const displayUser = user
 
   const findOrCreateMatch = async (otherUserId: string): Promise<string | null> => {
     try {
@@ -169,7 +133,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({ user, onMessage }) =>
       }
 
       if (response?.showPriceModal) {
-        router.push('/(home)/pricePlansHome')
+        router.push('/(home)/subscriptionScreenHome')
         return
       }
 

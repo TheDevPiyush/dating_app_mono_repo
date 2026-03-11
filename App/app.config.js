@@ -16,6 +16,7 @@ export default {
       bundleIdentifier: "com.pookiey.pookiey",
       icon: "./assets/images/icon.png",
       infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
         NSLocationWhenInUseUsageDescription:
           "Pookiey needs your location to show you matches nearby.",
         NSLocationAlwaysUsageDescription:

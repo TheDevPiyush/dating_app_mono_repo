@@ -44,6 +44,7 @@
     "expo-media-library": "~18.2.0",
     "expo-notifications": "~0.32.11",
     "expo-router": "~6.0.1",
+    "expo-screen-capture": "~8.0.9",
     "expo-secure-store": "~15.0.7",
     "expo-splash-screen": "~31.0.9",
     "expo-status-bar": "~3.0.8",

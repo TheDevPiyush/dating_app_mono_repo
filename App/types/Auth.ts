@@ -72,5 +72,6 @@ export interface DBUser {
   updatedAt?: Date;
   lastLoginAt?: Date;
   notificationTokens?: string[];
+  isAdmin: boolean
 }
 

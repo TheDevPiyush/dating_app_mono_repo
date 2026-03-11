@@ -15,6 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { subscriptionAPI, SubscriptionPlan } from '@/APIs/subscriptionAPIs';
 import CustomBackButton from '@/components/CustomBackButton';
 import CustomDialog, { DialogType } from '@/components/CustomDialog';
+import { router } from 'expo-router';
 
 const POOKIEY_WEB_URL = process.env.EXPO_PUBLIC_POOKIEY_WEB_URL;
 
@@ -84,13 +85,7 @@ export default function PricePlansScreen() {
   };
 
   const handleOpenWeb = () => {
-    if (!POOKIEY_WEB_URL) {
-      showDialog('warning', 'Purchase link is not configured.', 'Not available');
-      return;
-    }
-    Linking.openURL(POOKIEY_WEB_URL).catch(() => {
-      showDialog('error', 'Could not open the website.', 'Error');
-    });
+    // router.push("/subscriptionScreen");
   };
 
   const renderPlan = ({ item }: { item: SubscriptionPlan }) => {
@@ -170,46 +165,46 @@ export default function PricePlansScreen() {
       />
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <View style={styles.container}>
-        <CustomBackButton />
+          <CustomBackButton />
 
-        <View style={styles.header}>
-          <ThemedText type="title" style={styles.screenTitle}>
-            Limit exhausted? Upgrade to continue swiping!
-          </ThemedText>
-          <ThemedText type="default" style={styles.screenSubtitle}>
-            Choose a plan that fits how you like to connect.
-          </ThemedText>
-        </View>
-
-        {loading ? (
-          <View style={styles.centerContent}>
-            <ActivityIndicator color={Colors.primaryBackgroundColor} />
-          </View>
-        ) : error ? (
-          <View style={styles.centerContent}>
-            <ThemedText type="default" style={styles.errorText}>
-              {error}
+          <View style={styles.header}>
+            <ThemedText type="title" style={styles.screenTitle}>
+              Limit exhausted? Upgrade to continue swiping!
+            </ThemedText>
+            <ThemedText type="default" style={styles.screenSubtitle}>
+              Choose a plan that fits how you like to connect.
             </ThemedText>
           </View>
-        ) : (
-          <FlatList
-            data={plans.filter((plan) => plan.id !== 'free')}
-            keyExtractor={(item) => item.id}
-            renderItem={renderPlan}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
 
-        <View style={styles.bottomBar}>
-          <TouchableOpacity activeOpacity={0.7} style={styles.primaryButton} onPress={handleOpenWeb}>
-            <ThemedText type="defaultSemiBold" style={styles.primaryButtonText}>
-              Subscribe on Pookiey.com!
-            </ThemedText>
-          </TouchableOpacity>
+          {loading ? (
+            <View style={styles.centerContent}>
+              <ActivityIndicator color={Colors.primaryBackgroundColor} />
+            </View>
+          ) : error ? (
+            <View style={styles.centerContent}>
+              <ThemedText type="default" style={styles.errorText}>
+                {error}
+              </ThemedText>
+            </View>
+          ) : (
+            <FlatList
+              data={plans.filter((plan) => plan.id !== 'free')}
+              keyExtractor={(item) => item.id}
+              renderItem={renderPlan}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+            />
+          )}
+
+          <View style={styles.bottomBar}>
+            <TouchableOpacity activeOpacity={0.7} style={styles.primaryButton} onPress={handleOpenWeb}>
+              <ThemedText type="defaultSemiBold" style={styles.primaryButtonText}>
+                Subscribe on Pookiey.com!
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
     </>
   );
 }

@@ -18,6 +18,7 @@ export default function DashboardPage() {
       router.push("/auth");
       return;
     }
+    console.log(session)
 
     let isMounted = true;
 
