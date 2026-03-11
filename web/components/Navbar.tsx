@@ -174,9 +174,9 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
               About Us
             </Link>
             <Link
-              href="/blog"
+              href="/blogs"
               className={`text-sm  transition-colors font-bold ${
-                pathname === "/blog"
+                pathname === "/blogs"
                   ? "text-[#E94057]"
                   : "text-white hover:text-[#E94057]"
               }`}
