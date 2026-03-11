@@ -7,53 +7,67 @@ import {
 import {
     createRazorpayOrder,
     getActiveSubscription,
+    getPaymentByOrderId,
     getPaymentHistory,
-    markPaymentAsCaptured,
+    handlePaymentCaptured,
+    handlePaymentFailed,
+    abandonPendingPayments,
 } from "../services/subscriptionService";
 import { getRazorpayPublicKey } from "../config/razorpay";
-import { ObjectId } from "mongodb";
+import { Types } from "mongoose"; // ← use mongoose Types, not mongodb ObjectId
+import crypto from "crypto";
 
 export const getPlans = async (_req: Request, res: Response) => {
-    res.json({
-        success: true,
-        data: Object.values(SUBSCRIPTION_PLANS),
-    });
+    try {
+        res.json({
+            success: true,
+            data: Object.values(SUBSCRIPTION_PLANS),
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Failed to fetch plans" });
+    }
 };
 
 export const getCurrentSubscription = async (req: Request, res: Response) => {
-    const user = req.user;
-    if (!user?._id) {
-        return res.status(404).json({ success: false, message: "User not found" });
-    }
+    try {
+        const user = req.user;
+        if (!user?._id) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
 
-    const subscription = await getActiveSubscription(
-        new ObjectId(user._id.toString()),
-        user.user_id
-    );
+        const subscription = await getActiveSubscription(
+            new Types.ObjectId(user._id.toString()),
+            user.user_id
+        );
 
-    res.json({
-        success: true,
-        data: subscription,
-        meta: {
-            subscriptionSnapshot: user.subscription ?? {
-                status: "none",
+        res.json({
+            success: true,
+            data: subscription,
+            meta: {
+                subscriptionSnapshot: user.subscription ?? { status: "none" },
             },
-        },
-    });
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Failed to fetch subscription" });
+    }
 };
 
 export const getPayments = async (req: Request, res: Response) => {
-    const user = req.user;
-    if (!user?._id) {
-        return res.status(404).json({ success: false, message: "User not found" });
+    try {
+        const user = req.user;
+        if (!user?._id) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        const payments = await getPaymentHistory(new Types.ObjectId(user._id.toString()));
+
+        res.json({
+            success: true,
+            data: payments,
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Failed to fetch payments" });
     }
-
-    const payments = await getPaymentHistory(new ObjectId(user._id.toString()));
-
-    res.json({
-        success: true,
-        data: payments,
-    });
 };
 
 export const createOrder = async (req: Request, res: Response) => {
@@ -64,9 +78,12 @@ export const createOrder = async (req: Request, res: Response) => {
         }
 
         const user = req.user;
-        if (!user) {
+        if (!user?._id) {
             return res.status(401).json({ success: false, message: "Unauthorized" });
         }
+
+        // _id from req.user is the MongoDB ObjectId — pass it directly
+        await abandonPendingPayments(new Types.ObjectId(user._id.toString()));
 
         const { order, plan } = await createRazorpayOrder({
             planId: planId as SubscriptionPlanId,
@@ -89,6 +106,7 @@ export const createOrder = async (req: Request, res: Response) => {
     }
 };
 
+// Webhook is source of truth — this just confirms current DB state to the frontend
 export const verifyOrder = async (req: Request, res: Response) => {
     try {
         const {
@@ -105,23 +123,46 @@ export const verifyOrder = async (req: Request, res: Response) => {
         }
 
         const user = req.user;
-        if (!user) {
+        if (!user?._id) {
             return res.status(401).json({ success: false, message: "Unauthorized" });
         }
 
-        const result = await markPaymentAsCaptured({
-            userId: user.user_id,
-            razorpayOrderId,
-            razorpayPaymentId,
-            razorpaySignature,
-        });
+        // Sanity check — webhook is source of truth but we still verify signature here
+        const expectedSignature = crypto
+            .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
+            .update(`${razorpayOrderId}|${razorpayPaymentId}`)
+            .digest("hex");
+
+        if (expectedSignature !== razorpaySignature) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid payment signature",
+            });
+        }
+
+        const userMongoId = new Types.ObjectId(user._id.toString());
+
+        // getPaymentByOrderId expects ObjectId — fixed from passing user.user_id (string)
+        const payment = await getPaymentByOrderId(razorpayOrderId, userMongoId);
+
+        if (!payment) {
+            return res.status(404).json({ success: false, message: "Order not found" });
+        }
+
+        const subscription =
+            payment.status === "captured"
+                ? await getActiveSubscription(userMongoId, user.user_id)
+                : null;
 
         res.json({
             success: true,
             data: {
-                payment: result.payment,
-                subscription: result.subscription,
-                plan: result.plan,
+                payment,
+                subscription,
+                // payment.plan not payment.planId — matches IPaymentTransaction
+                plan: payment.plan
+                    ? SUBSCRIPTION_PLANS[payment.plan as SubscriptionPlanId]
+                    : null,
             },
         });
     } catch (error) {
@@ -132,3 +173,41 @@ export const verifyOrder = async (req: Request, res: Response) => {
     }
 };
 
+export const razorpayWebhook = async (req: Request, res: Response) => {
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET!;
+    const signature = req.headers["x-razorpay-signature"] as string;
+
+    if (!signature) {
+        return res.status(400).json({ success: false, message: "Missing signature" });
+    }
+
+    const expectedSignature = crypto
+        .createHmac("sha256", webhookSecret)
+        .update(JSON.stringify(req.body))
+        .digest("hex");
+
+    if (signature !== expectedSignature) {
+        return res.status(400).json({ success: false, message: "Invalid signature" });
+    }
+
+    // Respond immediately so Razorpay doesn't retry
+    res.json({ success: true });
+
+    const event = req.body.event as string;
+    const payment = req.body.payload?.payment?.entity;
+
+    if (!payment) {
+        console.error("Webhook received with no payment entity", req.body);
+        return;
+    }
+
+    try {
+        if (event === "payment.captured") {
+            await handlePaymentCaptured(payment);
+        } else if (event === "payment.failed") {
+            await handlePaymentFailed(payment);
+        }
+    } catch (error) {
+        console.error(`Webhook handler failed for event [${event}]:`, error);
+    }
+};

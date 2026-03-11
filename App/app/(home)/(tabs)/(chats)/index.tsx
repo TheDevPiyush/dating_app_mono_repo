@@ -150,7 +150,6 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 24,
-    fontWeight: '700',
     marginBottom: 12,
   },
   emptyThemedText: {

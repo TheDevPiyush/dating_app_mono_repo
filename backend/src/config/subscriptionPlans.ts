@@ -23,7 +23,7 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionPlanId, SubscriptionPlanConf
     basic: {
         id: "basic",
         title: "Basic",
-        amountInPaise: 49900,
+        amountInPaise: 4990,
         currency: "INR",
         durationDays: 30,
         features: [

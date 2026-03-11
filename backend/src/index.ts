@@ -25,10 +25,12 @@ const PORT = process.env.PORT || 6969;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
-// Twilio webhooks send application/x-www-form-urlencoded by default
+
+
 app.use(express.urlencoded({ extended: false }));
 app.use(requestIp.mw());
+app.use('/api/v1/subscriptions', subscriptionRouter);
+app.use(express.json());
 
 connectDB();
 
@@ -50,7 +52,6 @@ app.use('/api/v1/interaction', interactionRouter);
 app.use('/api/v1/aws', awsRouter);
 app.use('/api/v1/messages', messageRouter);
 app.use('/api/v1/stories', storyRouter);
-app.use('/api/v1/subscriptions', subscriptionRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/support', supportRouter);
 app.use('/api/v1/announcements', announcementRouter);
