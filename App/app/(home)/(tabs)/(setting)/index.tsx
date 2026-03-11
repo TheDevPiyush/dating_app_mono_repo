@@ -253,7 +253,7 @@ const Settings = () => {
               style={[styles.settingItem, isSubscriptionActive && styles.subscriptionItem]}
               onPress={() => handleButtonPress('Price Plans')}
               activeOpacity={0.7}
-              disabled={!isSubscriptionActive}
+              disabled={isSubscriptionActive}
             >
               <View style={styles.settingIconContainer}>
                 <AntDesign name="crown" size={24} color={Colors.primary.red} />
