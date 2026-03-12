@@ -4,7 +4,6 @@ import { Playfair_Display, Great_Vibes, Cormorant_Garamond } from "next/font/goo
 import "./globals.css";
 import Providers from "./providers";
 import Layout from "@/components/Layout";
-import Footer from "@/components/footer";
 
 const hellix = localFont({
   src: [
@@ -71,7 +70,6 @@ export default function RootLayout({
         <Providers>
           <Layout>{children}</Layout>
         </Providers>
-        <Footer />
       </body>
     </html>
   );

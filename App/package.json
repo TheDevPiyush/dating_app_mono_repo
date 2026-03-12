@@ -1,7 +1,7 @@
 {
-  "name": "Pookiey",
+  "name": "pookiey",
   "main": "expo-router/entry",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "scripts": {
     "start": "expo start --no-web",
     "start:dev": "expo start --dev-client",
@@ -14,7 +14,6 @@
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
-    "@react-native-community/slider": "^5.1.0",
     "@react-native-google-signin/google-signin": "16.0.0",
     "@react-native-vector-icons/material-design-icons": "^12.3.0",
     "@react-navigation/bottom-tabs": "^7.3.10",

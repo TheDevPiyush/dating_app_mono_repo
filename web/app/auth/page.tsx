@@ -1,22 +1,23 @@
 "use client";
 
 import { useEffect } from "react";
-import { useSession } from "@supabase/auth-helpers-react";
+import { useSessionContext } from "@supabase/auth-helpers-react";
 import { useRouter } from "next/navigation";
 import LoginForm from "../../components/auth/LoginForm";
 
 export default function AuthPage() {
-  const session = useSession();
+  const { session, isLoading } = useSessionContext();
   const router = useRouter();
 
+  // Only redirect once we KNOW there is a session (not while loading)
   useEffect(() => {
-    if (session) {
+    if (!isLoading && session) {
       router.push("/dashboard");
     }
-  }, [session, router]);
+  }, [session, isLoading, router]);
 
-  if (session) {
-    return null; // Will redirect
+  if (isLoading || session) {
+    return null; // Loading or will redirect
   }
 
   return (

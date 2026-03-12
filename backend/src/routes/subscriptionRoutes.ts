@@ -7,15 +7,15 @@ import {
     getPayments,
     getPlans,
     verifyOrder,
-    razorpayWebhook,
+    subscriptionWebhook,
 } from "../controllers/subscriptionController";
 
 const subscriptionRouter = Router();
 
 subscriptionRouter.post(
-    "/webhook",
+    "/subscription-webhook",
     express.raw({ type: "*/*" }),
-    razorpayWebhook
+    subscriptionWebhook
 );
 
 subscriptionRouter.use(express.json());

@@ -1,18 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
-import { useSession } from "@supabase/auth-helpers-react";
+import { useSessionContext } from "@supabase/auth-helpers-react";
 import { useRouter } from "next/navigation";
 
 export default function AuthRedirect() {
-  const session = useSession();
+  const { session, isLoading } = useSessionContext();
   const router = useRouter();
 
   useEffect(() => {
-    if (session) {
+    if (!isLoading && session) {
       router.push("/dashboard");
     }
-  }, [session, router]);
+  }, [session, isLoading, router]);
 
   return null;
 }
