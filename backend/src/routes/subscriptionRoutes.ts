@@ -1,5 +1,5 @@
-// routes/subscriptionRouter.ts
-import express, { Router } from "express";
+// subscriptionRoutes.ts
+import express, { Router, Request, Response, NextFunction } from "express";
 import { verifyUser } from "../middleware/userMiddlewares";
 import {
     createOrder,
@@ -12,17 +12,19 @@ import {
 
 const subscriptionRouter = Router();
 
-// Webhook — raw body BEFORE any other middleware, no auth
 subscriptionRouter.post(
     "/webhook",
-    express.raw({ type: "application/json" }),
+    express.raw({ type: "*/*" }),
     razorpayWebhook
 );
 
-subscriptionRouter.get("/plans", verifyUser, getPlans);
-subscriptionRouter.get("/current", verifyUser, getCurrentSubscription);
-subscriptionRouter.get("/payments", verifyUser, getPayments);
-subscriptionRouter.post("/create-order", verifyUser, createOrder);
-subscriptionRouter.post("/verify", verifyUser, verifyOrder);
+subscriptionRouter.use(express.json());
+subscriptionRouter.use(verifyUser);
+
+subscriptionRouter.get("/plans", getPlans);
+subscriptionRouter.get("/current", getCurrentSubscription);
+subscriptionRouter.get("/payments", getPayments);
+subscriptionRouter.post("/create-order", createOrder);
+subscriptionRouter.post("/verify", verifyOrder);
 
 export default subscriptionRouter;

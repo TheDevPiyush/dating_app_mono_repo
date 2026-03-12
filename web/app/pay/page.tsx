@@ -12,17 +12,35 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const STORAGE_KEY = "pay-page-access-token";
 const REFRESH_KEY = "pay-page-refresh-token";
 
+const VERIFY_MAX_RETRIES = 5;
+const VERIFY_RETRY_DELAY_MS = 1200;
+
 type AuthState = "loading" | "authenticated" | "error";
 
 interface RazorpayOrderResponse {
-    order: {
-        id: string;
-        amount: number;
-        currency: string;
-    };
+    order: { id: string; amount: number; currency: string };
     plan: SubscriptionPlan;
     razorpayKey: string;
 }
+
+// Matches the verifyOrder response shape from the controller
+interface VerifyOrderResponse {
+    payment: {
+        status: "created" | "authorized" | "captured" | "failed" | "refunded" | "abandoned";
+        plan: string;
+        razorpayOrderId: string;
+        razorpayPaymentId?: string;
+    };
+    subscription: {
+        plan: string;
+        status: string;
+        startDate: string;
+        endDate: string;
+    } | null;
+    plan: SubscriptionPlan | null;
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /* ------------------------------------------------------------------ */
 /*  Loader                                                              */
@@ -51,6 +69,8 @@ function PayLoader({ message }: { message: string }) {
 /*  Main page                                                           */
 /* ------------------------------------------------------------------ */
 export default function PayPage() {
+    console.log("PayPage render");
+
     const [supabase] = useState<SupabaseClient>(() =>
         createClient(supabaseUrl, supabaseAnonKey, {
             auth: {
@@ -64,7 +84,10 @@ export default function PayPage() {
 
     const { isReady: isRazorpayReady, error: razorpayError } = useRazorpay();
 
-    // Initialize synchronously from sessionStorage to avoid loading flash on refresh
+    const isFirstLoad = useRef(
+        typeof window === "undefined" ? true : !sessionStorage.getItem(STORAGE_KEY)
+    );
+
     const [authState, setAuthState] = useState<AuthState>(() => {
         if (typeof window === "undefined") return "loading";
         return sessionStorage.getItem(STORAGE_KEY) ? "authenticated" : "loading";
@@ -74,16 +97,18 @@ export default function PayPage() {
     const [user, setUser] = useState<User | null>(null);
     const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
     const [activePlanId, setActivePlanId] = useState<string | null>(null);
+    const plansLoadedOnce = useRef(false);
     const [plansLoading, setPlansLoading] = useState(true);
     const [plansError, setPlansError] = useState<string | null>(null);
     const [checkoutError, setCheckoutError] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
     const [paymentSuccess, setPaymentSuccess] = useState(false);
+    const [verifiedPlan, setVerifiedPlan] = useState<SubscriptionPlan | null>(null);
 
     const didAuth = useRef(false);
 
-    /* ---- Auth: read from URL or sessionStorage --------------------- */
+    /* ---- Auth -------------------------------------------------------- */
     useEffect(() => {
         if (didAuth.current) return;
         didAuth.current = true;
@@ -92,7 +117,6 @@ export default function PayPage() {
         const accessToken = params.get("user-token-for-payment");
         const refreshToken = params.get("refresh-token");
 
-        // Persist to sessionStorage immediately before any async work
         if (accessToken) {
             sessionStorage.setItem(STORAGE_KEY, accessToken);
             if (refreshToken) sessionStorage.setItem(REFRESH_KEY, refreshToken);
@@ -108,8 +132,6 @@ export default function PayPage() {
             return;
         }
 
-        // Re-hydrate session silently — if authState is already "authenticated"
-        // (initialized from sessionStorage) we don't flash loading at all
         (async () => {
             try {
                 const { data, error } = await supabase.auth.setSession({
@@ -126,9 +148,7 @@ export default function PayPage() {
                 }
 
                 setUser(data.user);
-                // Only transition if not already authenticated — avoids re-triggering
-                // the plans fetch effect unnecessarily
-                setAuthState(prev => prev === "authenticated" ? prev : "authenticated");
+                setAuthState((prev) => (prev === "authenticated" ? prev : "authenticated"));
             } catch {
                 setAuthState("error");
                 setAuthError("Something went wrong. Please try again from the app.");
@@ -136,7 +156,7 @@ export default function PayPage() {
         })();
     }, [supabase]);
 
-    /* ---- Fetch plans + current subscription after auth ------------- */
+    /* ---- Fetch plans ------------------------------------------------- */
     useEffect(() => {
         if (authState !== "authenticated") return;
 
@@ -145,10 +165,7 @@ export default function PayPage() {
         (async () => {
             try {
                 const [plansRes, currentRes] = await Promise.all([
-                    callBackend<SubscriptionPlan[]>(
-                        supabase,
-                        "/api/v1/subscriptions/plans"
-                    ),
+                    callBackend<SubscriptionPlan[]>(supabase, "/api/v1/subscriptions/plans"),
                     callBackend<unknown>(supabase, "/api/v1/subscriptions/current"),
                 ]);
 
@@ -162,6 +179,7 @@ export default function PayPage() {
                     }
                 )?.subscriptionSnapshot;
                 setActivePlanId(snapshot?.plan ?? null);
+                plansLoadedOnce.current = true;
             } catch (err) {
                 if (!cancelled) {
                     setPlansError(
@@ -180,12 +198,56 @@ export default function PayPage() {
         };
     }, [authState, supabase]);
 
-    /* ---- Checkout handler ------------------------------------------ */
+    /* ---- Verify with retry ------------------------------------------ */
+    // Webhook and verifyOrder race slightly — poll until captured or give up
+    const verifyWithRetry = useCallback(
+        async (razorpayResponse: Record<string, string>): Promise<VerifyOrderResponse> => {
+            let lastError: Error | null = null;
+
+            for (let attempt = 0; attempt < VERIFY_MAX_RETRIES; attempt++) {
+                if (attempt > 0) await sleep(VERIFY_RETRY_DELAY_MS);
+
+                try {
+                    const res = await callBackend<VerifyOrderResponse>(
+                        supabase,
+                        "/api/v1/subscriptions/verify",
+                        {
+                            method: "POST",
+                            // Controller expects: razorpay_order_id, razorpay_payment_id, razorpay_signature
+                            jsonBody: {
+                                razorpay_order_id: razorpayResponse.razorpay_order_id,
+                                razorpay_payment_id: razorpayResponse.razorpay_payment_id,
+                                razorpay_signature: razorpayResponse.razorpay_signature,
+                            },
+                        }
+                    );
+
+                    if (!res.data) throw new Error("Empty response from verify endpoint");
+
+                    // If webhook hasn't fired yet, payment is still pending — retry
+                    if (res.data.payment.status === "captured") {
+                        return res.data;
+                    }
+
+                    lastError = new Error("Payment not yet confirmed, retrying…");
+                } catch (err) {
+                    lastError = err instanceof Error ? err : new Error("Verification failed");
+                }
+            }
+
+            throw lastError ?? new Error("Payment verification timed out. Contact support.");
+        },
+        [supabase]
+    );
+
+    /* ---- Checkout ---------------------------------------------------- */
     const handleCheckout = useCallback(
         async (plan: SubscriptionPlan) => {
             setIsProcessing(true);
             setProcessingPlanId(plan.id);
             setCheckoutError(null);
+
+            console.log(plan)
 
             try {
                 const orderResponse = await callBackend<RazorpayOrderResponse>(
@@ -194,15 +256,11 @@ export default function PayPage() {
                     { method: "POST", jsonBody: { planId: plan.id } }
                 );
 
-                if (!orderResponse.data) {
-                    throw new Error("Failed to create Razorpay order.");
-                }
+                if (!orderResponse.data) throw new Error("Failed to create Razorpay order.");
 
                 const { order, razorpayKey } = orderResponse.data;
 
-                if (!window.Razorpay) {
-                    throw new Error("Razorpay is not loaded.");
-                }
+                if (!window.Razorpay) throw new Error("Razorpay is not loaded.");
 
                 const razorpay = new window.Razorpay({
                     key: razorpayKey,
@@ -211,42 +269,48 @@ export default function PayPage() {
                     name: "Pookiey Premium",
                     description: `Activate ${plan.title} plan`,
                     order_id: order.id,
-                    prefill: {
-                        email: user?.email ?? "",
+                    prefill: { email: user?.email ?? "" },
+
+                    config: {
+                        display: {
+                            blocks: {
+                                utib: { name: "Pay via UPI", instruments: [{ method: "upi" }] },
+                                card: { name: "Pay via Card", instruments: [{ method: "card" }] },
+                                wallet: { name: "Pay via Wallet", instruments: [{ method: "wallet" }] },
+                            },
+                            sequence: ["block.utib", "block.card", "block.wallet"],
+                            preferences: { show_default_blocks: false },
+                        },
                     },
+
                     handler: async (response: Record<string, string>) => {
                         try {
-                            await callBackend(
-                                supabase,
-                                "/api/v1/subscriptions/verify",
-                                { method: "POST", jsonBody: response }
-                            );
-                            // Clear tokens — payment done, no need to keep them
+                            const verified = await verifyWithRetry(response);
+
                             sessionStorage.removeItem(STORAGE_KEY);
                             sessionStorage.removeItem(REFRESH_KEY);
+
+                            setVerifiedPlan(verified.plan ?? plan);
+                            setActivePlanId(verified.subscription?.plan ?? plan.id);
                             setPaymentSuccess(true);
                         } catch (err) {
                             setCheckoutError(
                                 err instanceof Error
-                                    ? err.message ?? "Failed to verify payment. Contact support."
+                                    ? err.message
                                     : "Failed to verify payment. Contact support."
                             );
                         }
                     },
-                    notes: {
-                        planId: plan.id,
-                        userId: user?.id ?? "",
-                    },
-                    theme: {
-                        color: "#E94057",
-                    },
+
+                    notes: { planId: plan.id, userId: user?.id ?? "" },
+                    theme: { color: "#E94057" },
                 });
 
                 razorpay.open();
             } catch (err) {
                 setCheckoutError(
                     err instanceof Error
-                        ? err.message ?? "Checkout failed. Please try again."
+                        ? err.message
                         : "Checkout failed. Please try again."
                 );
             } finally {
@@ -254,24 +318,20 @@ export default function PayPage() {
                 setProcessingPlanId(null);
             }
         },
-        [supabase, user]
+        [supabase, user, verifyWithRetry]
     );
 
-    /* ---- Currency formatter ---------------------------------------- */
+    /* ---- Currency formatter ----------------------------------------- */
     const amountToINR = (amountInPaise: number) =>
-        new Intl.NumberFormat("en-IN", {
-            style: "currency",
-            currency: "INR",
-        }).format(amountInPaise / 100);
+        new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(
+            amountInPaise / 100
+        );
 
-    /* ---- Render states --------------------------------------------- */
-
-    // 1. Auth loading (only on very first visit before token is stored)
-    if (authState === "loading") {
+    /* ---- Render states ----------------------------------------------- */
+    if (authState === "loading" && isFirstLoad.current) {
         return <PayLoader message="Authenticating to payments…" />;
     }
 
-    // 2. Auth error
     if (authState === "error") {
         return (
             <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-[#FFF5F7] via-white to-[#F8ECF5] px-6">
@@ -287,7 +347,6 @@ export default function PayPage() {
         );
     }
 
-    // 3. Payment success
     if (paymentSuccess) {
         return (
             <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-[#FFF5F7] via-white to-[#F8ECF5] px-6">
@@ -298,6 +357,11 @@ export default function PayPage() {
                     <h2 className="text-2xl font-semibold text-[#2A1F2D]">
                         Payment successful!
                     </h2>
+                    {verifiedPlan && (
+                        <p className="mt-1 text-sm font-medium text-[#E94057] uppercase tracking-wide">
+                            {verifiedPlan.title} plan activated
+                        </p>
+                    )}
                     <p className="mt-2 text-sm text-[#6F6077]">
                         Your premium plan is now active. You can close this page and head
                         back to the app.
@@ -307,18 +371,15 @@ export default function PayPage() {
         );
     }
 
-    // 4. Plans loading (only on first visit, not on refresh)
-    if (plansLoading || plans.length === 0) {
+    if ((plansLoading || plans.length === 0) && isFirstLoad.current && !plansLoadedOnce.current) {
         return <PayLoader message="Loading plans for you…" />;
     }
 
-    // 5. Plans ready — render cards
     const errorMessage = checkoutError || razorpayError || plansError;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#FFF5F7] via-white to-[#F8ECF5] px-4 py-8 sm:px-6">
             <div className="mx-auto w-full max-w-3xl">
-                {/* Header */}
                 <div className="mb-8 text-center">
                     <span className="mb-3 inline-flex rounded-full bg-[#E94057]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#E94057]">
                         Pookiey Premium
@@ -331,14 +392,12 @@ export default function PayPage() {
                     </p>
                 </div>
 
-                {/* Error banner */}
                 {errorMessage && (
                     <div className="mb-6 rounded-2xl border border-red-100 bg-red-50/80 p-4 text-center text-sm font-medium text-[#C3344C] shadow-sm">
                         {errorMessage}
                     </div>
                 )}
 
-                {/* Active plan badge */}
                 {activePlanId && activePlanId !== "free" && (
                     <div className="mb-6 rounded-2xl bg-emerald-50 p-4 text-center text-sm font-medium text-emerald-700">
                         Your current plan:{" "}
@@ -346,97 +405,93 @@ export default function PayPage() {
                     </div>
                 )}
 
-                {/* Plan cards */}
                 <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                    {plans
-                        .filter((plan) => plan.id !== "free")
-                        .map((plan) => {
-                            const isCurrentPlan = activePlanId === plan.id;
-
-                            return (
-                                <article
-                                    key={plan.id}
-                                    className={`group relative flex flex-col justify-between overflow-hidden rounded-3xl border p-6 shadow-lg transition duration-300 hover:-translate-y-1 hover:shadow-2xl ${isCurrentPlan
+                    {plansLoading && plans.length === 0
+                        ? [1, 2, 3].map((n) => (
+                            <div
+                                key={n}
+                                className="h-72 animate-pulse rounded-3xl bg-white/60 shadow-lg"
+                            />
+                        ))
+                        : plans
+                            .filter((plan) => plan.id !== "free")
+                            .map((plan) => {
+                                const isCurrentPlan = activePlanId === plan.id;
+                                return (
+                                    <article
+                                        key={plan.id}
+                                        className={`group relative flex flex-col justify-between overflow-hidden rounded-3xl border p-6 shadow-lg transition duration-300 hover:-translate-y-1 hover:shadow-2xl ${isCurrentPlan
                                             ? "border-emerald-200 bg-emerald-50/50 shadow-emerald-100"
                                             : "border-white/60 bg-white/80 shadow-[#E94057]/10"
-                                        }`}
-                                >
-                                    {/* Hover gradient */}
-                                    <div className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-100">
-                                        <div className="absolute inset-0 bg-gradient-to-br from-[#E94057]/12 via-transparent to-[#4B164C]/12" />
-                                    </div>
-
-                                    <div className="relative space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#B49CC4]">
-                                                {plan.title}
-                                            </p>
-                                            {plan.id === "premium" && (
-                                                <span className="rounded-full bg-[#E94057]/10 px-2.5 py-0.5 text-[0.65rem] font-semibold text-[#E94057]">
-                                                    Most loved
-                                                </span>
-                                            )}
-                                            {isCurrentPlan && (
-                                                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[0.65rem] font-semibold text-emerald-700">
-                                                    Active
-                                                </span>
-                                            )}
+                                            }`}
+                                    >
+                                        <div className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-100">
+                                            <div className="absolute inset-0 bg-gradient-to-br from-[#E94057]/12 via-transparent to-[#4B164C]/12" />
                                         </div>
 
-                                        <p className="text-3xl font-semibold text-[#2A1F2D]">
-                                            {amountToINR(plan.amountInPaise)}
-                                            <span className="text-sm font-normal text-[#6F6077]">
-                                                {" "}
-                                                · {plan.durationDays} days
-                                                {typeof plan.interaction_per_day === "number" &&
-                                                    plan.interaction_per_day > 0 && (
-                                                        <> · {plan.interaction_per_day}/day</>
-                                                    )}
-                                            </span>
-                                        </p>
-
-                                        <ul className="space-y-2 text-sm text-[#6F6077]">
-                                            {plan.features.map((feature) => (
-                                                <li
-                                                    key={feature}
-                                                    className="flex items-center gap-2"
-                                                >
-                                                    <span
-                                                        aria-hidden
-                                                        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E94057]/15 text-xs text-[#E94057]"
-                                                    >
-                                                        ✓
+                                        <div className="relative space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#B49CC4]">
+                                                    {plan.title}
+                                                </p>
+                                                {plan.id === "premium" && (
+                                                    <span className="rounded-full bg-[#E94057]/10 px-2.5 py-0.5 text-[0.65rem] font-semibold text-[#E94057]">
+                                                        Most loved
                                                     </span>
-                                                    {feature}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
+                                                )}
+                                                {isCurrentPlan && (
+                                                    <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[0.65rem] font-semibold text-emerald-700">
+                                                        Active
+                                                    </span>
+                                                )}
+                                            </div>
 
-                                    <button
-                                        onClick={() => handleCheckout(plan)}
-                                        disabled={
-                                            !isRazorpayReady ||
-                                            isProcessing ||
-                                            Boolean(
-                                                processingPlanId &&
-                                                processingPlanId !== plan.id
-                                            )
-                                        }
-                                        className="relative mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-[#2A1F2D] px-4 py-3.5 text-sm font-semibold text-white shadow-md shadow-[#2A1F2D]/20 transition hover:scale-[1.01] hover:bg-[#201523] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E94057] disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                        {isProcessing && processingPlanId === plan.id
-                                            ? "Processing…"
-                                            : isCurrentPlan
-                                                ? "Renew plan"
-                                                : "Choose plan"}
-                                    </button>
-                                </article>
-                            );
-                        })}
+                                            <p className="text-3xl font-semibold text-[#2A1F2D]">
+                                                {amountToINR(plan.amountInPaise)}
+                                                <span className="text-sm font-normal text-[#6F6077]">
+                                                    {" "}· {plan.durationDays} days
+                                                    {typeof plan.interaction_per_day === "number" &&
+                                                        plan.interaction_per_day > 0 && (
+                                                            <> · {plan.interaction_per_day}/day</>
+                                                        )}
+                                                </span>
+                                            </p>
+
+                                            <ul className="space-y-2 text-sm text-[#6F6077]">
+                                                {plan.features.map((feature) => (
+                                                    <li key={feature} className="flex items-center gap-2">
+                                                        <span
+                                                            aria-hidden
+                                                            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E94057]/15 text-xs text-[#E94057]"
+                                                        >
+                                                            ✓
+                                                        </span>
+                                                        {feature}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+
+                                        <button
+                                            onClick={() => handleCheckout(plan)}
+                                            disabled={
+                                                !isRazorpayReady ||
+                                                isProcessing ||
+                                                Boolean(processingPlanId && processingPlanId !== plan.id)
+                                            }
+                                            className="relative mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-[#2A1F2D] px-4 py-3.5 text-sm font-semibold text-white shadow-md shadow-[#2A1F2D]/20 transition hover:scale-[1.01] hover:bg-[#201523] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E94057] disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {isProcessing && processingPlanId === plan.id
+                                                ? "Processing…"
+                                                : isCurrentPlan
+                                                    ? "Renew plan"
+                                                    : "Choose plan"}
+                                        </button>
+                                    </article>
+                                );
+                            })}
                 </div>
 
-                {/* Footer */}
                 <p className="mt-8 text-center text-xs text-[#B49CC4]">
                     Secure payments powered by Razorpay · Cancel anytime from the app
                 </p>

@@ -1,3 +1,4 @@
+// app.ts
 import express from "express";
 import dotenv from "dotenv";
 import { createServer } from "http";
@@ -23,29 +24,26 @@ const app = express();
 const httpServer = createServer(app);
 const PORT = process.env.PORT || 6969;
 
-// Middleware
 app.use(cors());
-
-
-app.use(express.urlencoded({ extended: false }));
 app.use(requestIp.mw());
+
 app.use('/api/v1/subscriptions', subscriptionRouter);
+
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 connectDB();
 
 const io = initializeSocket(httpServer);
-
 app.set('io', io);
 
 app.get("/", async (req, res) => {
-  res.send(RootAPIResponse);
+    res.send(RootAPIResponse);
 });
 
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok" })
-})
-
+    res.status(200).json({ status: "ok" });
+});
 
 app.use('/api/v1/user', userRouter);
 app.use('/api/v1/interaction', interactionRouter);
@@ -58,5 +56,5 @@ app.use('/api/v1/announcements', announcementRouter);
 app.use('/api/v1/blog', blogRoutes);
 
 httpServer.listen(PORT as number, "0.0.0.0", () => {
-  console.info(`Socket.io & Server running on port ${PORT}`);
+    console.info(`Socket.io & Server running on port ${PORT}`);
 });

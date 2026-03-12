@@ -181,23 +181,41 @@ export const razorpayWebhook = async (req: Request, res: Response) => {
         return res.status(400).json({ success: false, message: "Missing signature" });
     }
 
+    let rawBody: string;
+    if (req.body instanceof Buffer) {
+        rawBody = req.body.toString("utf-8");
+    } else if (typeof req.body === "string") {
+        rawBody = req.body;
+    } else {
+        console.error("Webhook body was pre-parsed — raw body unavailable");
+        return res.status(400).json({ success: false, message: "Invalid body format" });
+    }
+
     const expectedSignature = crypto
         .createHmac("sha256", webhookSecret)
-        .update(JSON.stringify(req.body))
+        .update(rawBody)
         .digest("hex");
 
     if (signature !== expectedSignature) {
+        console.error("Webhook signature mismatch");
         return res.status(400).json({ success: false, message: "Invalid signature" });
     }
 
-    // Respond immediately so Razorpay doesn't retry
     res.json({ success: true });
 
-    const event = req.body.event as string;
-    const payment = req.body.payload?.payment?.entity;
+    let parsedBody: any;
+    try {
+        parsedBody = JSON.parse(rawBody);
+    } catch {
+        console.error("Failed to parse webhook body");
+        return;
+    }
+
+    const event = parsedBody.event as string;
+    const payment = parsedBody.payload?.payment?.entity;
 
     if (!payment) {
-        console.error("Webhook received with no payment entity", req.body);
+        console.error("Webhook received with no payment entity");
         return;
     }
 

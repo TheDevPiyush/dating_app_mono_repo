@@ -182,16 +182,16 @@ export const handlePaymentCaptured = async (razorpayPayment: any) => {
     const razorpayPaymentId: string = razorpayPayment.id;
 
     const payment = await PaymentTransaction.findOne({ razorpayOrderId });
-    if (!payment) throw new Error(`Payment record not found for order: ${razorpayOrderId}`);
+    if (!payment) {
+        throw new Error(`Payment record not found for order: ${razorpayOrderId}`);
+    }
 
-    // Idempotency — webhook can fire more than once
     if (payment.status === "captured") return;
 
     payment.razorpayPaymentId = razorpayPaymentId;
     payment.status = "captured";
     await payment.save();
 
-    // userId in IPaymentTransaction is ObjectId
     const user = await User.findById(payment.userId).lean<IUser>();
     if (!user) throw new Error("User not found for captured payment");
 

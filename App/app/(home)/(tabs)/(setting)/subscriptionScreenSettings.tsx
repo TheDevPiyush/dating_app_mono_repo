@@ -1,30 +1,43 @@
 import { WebView } from 'react-native-webview';
 import Constants from 'expo-constants';
-import { StyleSheet, View } from 'react-native';
-import { useEffect, useState } from 'react';
+import { StyleSheet, ActivityIndicator } from 'react-native';
+import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/config/supabaseConfig';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 
 export default function SubscriptionScreenSettings() {
 
-    const [user_token, setUser_token] = useState("")
-
-    const getToken = async () => {
-        const { data } = await supabase.auth.getSession()
-        setUser_token(data.session?.access_token as string);
-    };
+    const [userToken, setUserToken] = useState<string | null>(null);
 
     useEffect(() => {
-        getToken();
-    }, [])
+        supabase.auth.getSession().then(({ data }) => {
+            const token = data.session?.access_token;
+            if (token) setUserToken(token);
+        });
+    }, []);
+
+    const webviewSource = useMemo(() => {
+        if (!userToken) return null;
+        return {
+            uri: `https://app.thedevpiyush.com/pay/?user-token-for-payment=${userToken}`
+        };
+    }, [userToken]);
+
+    if (!webviewSource) {
+        return (
+            <SafeAreaView style={[styles.container, styles.centered]}>
+                <ActivityIndicator color={Colors.titleColor} />
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container}>
             <WebView
                 style={styles.webview}
-                source={{ uri: `https://app.thedevpiyush.com/pay/?user-token-for-payment=${user_token}` }}
+                source={webviewSource}
+                cacheEnabled={false}
             />
         </SafeAreaView>
     );
@@ -35,18 +48,9 @@ const styles = StyleSheet.create({
         flex: 1,
         marginTop: Constants.statusBarHeight,
     },
-    header: {
-        paddingHorizontal: 20,
-        paddingTop: 1,
-        paddingBottom: 2,
-    },
-    screenTitle: {
-        fontSize: 24,
-        marginBottom: 6,
-        color: Colors.titleColor,
-    },
-    screenSubtitle: {
-        color: Colors.text.secondary,
+    centered: {
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     webview: {
         flex: 1,
