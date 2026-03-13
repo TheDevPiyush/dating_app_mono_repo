@@ -14,7 +14,7 @@ import {
     abandonPendingPayments,
 } from "../services/subscriptionService";
 import { getRazorpayPublicKey } from "../config/razorpay";
-import { Types } from "mongoose"; // ← use mongoose Types, not mongodb ObjectId
+import { Types } from "mongoose";
 import crypto from "crypto";
 
 export const getPlans = async (_req: Request, res: Response) => {
@@ -173,7 +173,7 @@ export const verifyOrder = async (req: Request, res: Response) => {
     }
 };
 
-export const razorpayWebhook = async (req: Request, res: Response) => {
+export const subscriptionWebhook = async (req: Request, res: Response) => {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET!;
     const signature = req.headers["x-razorpay-signature"] as string;
 

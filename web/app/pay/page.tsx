@@ -12,6 +12,9 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const STORAGE_KEY = "pay-page-access-token";
 const REFRESH_KEY = "pay-page-refresh-token";
 
+const PLANS_CACHE_KEY = "pay-page-plans-cache";
+const ACTIVE_PLAN_CACHE_KEY = "pay-page-active-plan";
+
 const VERIFY_MAX_RETRIES = 5;
 const VERIFY_RETRY_DELAY_MS = 1200;
 
@@ -95,10 +98,25 @@ export default function PayPage() {
 
     const [authError, setAuthError] = useState<string | null>(null);
     const [user, setUser] = useState<User | null>(null);
-    const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
-    const [activePlanId, setActivePlanId] = useState<string | null>(null);
-    const plansLoadedOnce = useRef(false);
-    const [plansLoading, setPlansLoading] = useState(true);
+    const [plans, setPlans] = useState<SubscriptionPlan[]>(() => {
+        if (typeof window === "undefined") return [];
+        try {
+            const cached = sessionStorage.getItem(PLANS_CACHE_KEY);
+            return cached ? JSON.parse(cached) : [];
+        } catch {
+            return [];
+        }
+    });
+    const [activePlanId, setActivePlanId] = useState<string | null>(() => {
+        if (typeof window === "undefined") return null;
+        return sessionStorage.getItem(ACTIVE_PLAN_CACHE_KEY);
+    });
+    const plansLoadedOnce = useRef(
+        typeof window !== "undefined" && !!sessionStorage.getItem(PLANS_CACHE_KEY)
+    );
+    const [plansLoading, setPlansLoading] = useState(
+        () => typeof window === "undefined" || !sessionStorage.getItem(PLANS_CACHE_KEY)
+    );
     const [plansError, setPlansError] = useState<string | null>(null);
     const [checkoutError, setCheckoutError] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -156,9 +174,10 @@ export default function PayPage() {
         })();
     }, [supabase]);
 
-    /* ---- Fetch plans ------------------------------------------------- */
+    /* ---- Fetch plans (runs exactly once) ------------------------------ */
     useEffect(() => {
         if (authState !== "authenticated") return;
+        if (plansLoadedOnce.current) return; // already loaded or restored from cache
 
         let cancelled = false;
 
@@ -171,14 +190,23 @@ export default function PayPage() {
 
                 if (cancelled) return;
 
-                setPlans(plansRes.data ?? []);
+                const fetchedPlans = plansRes.data ?? [];
+                setPlans(fetchedPlans);
 
                 const snapshot = (
                     currentRes.meta as {
                         subscriptionSnapshot?: { plan?: string | null };
                     }
                 )?.subscriptionSnapshot;
-                setActivePlanId(snapshot?.plan ?? null);
+                const planId = snapshot?.plan ?? null;
+                setActivePlanId(planId);
+
+                // Persist so a remount (e.g. strict-mode or navigation) is instant
+                try {
+                    sessionStorage.setItem(PLANS_CACHE_KEY, JSON.stringify(fetchedPlans));
+                    if (planId) sessionStorage.setItem(ACTIVE_PLAN_CACHE_KEY, planId);
+                } catch { /* quota exceeded – non-critical */ }
+
                 plansLoadedOnce.current = true;
             } catch (err) {
                 if (!cancelled) {
@@ -328,7 +356,8 @@ export default function PayPage() {
         );
 
     /* ---- Render states ----------------------------------------------- */
-    if (authState === "loading" && isFirstLoad.current) {
+    // Only show auth loader on the very first visit when we have no cached plans
+    if (authState === "loading" && isFirstLoad.current && !plansLoadedOnce.current) {
         return <PayLoader message="Authenticating to payments…" />;
     }
 
@@ -371,7 +400,7 @@ export default function PayPage() {
         );
     }
 
-    if ((plansLoading || plans.length === 0) && isFirstLoad.current && !plansLoadedOnce.current) {
+    if (plansLoading && plans.length === 0 && !plansLoadedOnce.current) {
         return <PayLoader message="Loading plans for you…" />;
     }
 
@@ -398,15 +427,8 @@ export default function PayPage() {
                     </div>
                 )}
 
-                {activePlanId && activePlanId !== "free" && (
-                    <div className="mb-6 rounded-2xl bg-emerald-50 p-4 text-center text-sm font-medium text-emerald-700">
-                        Your current plan:{" "}
-                        <strong className="uppercase">{activePlanId}</strong>
-                    </div>
-                )}
-
                 <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                    {plansLoading && plans.length === 0
+                    {plansLoading && plans.length === 0 && !plansLoadedOnce.current
                         ? [1, 2, 3].map((n) => (
                             <div
                                 key={n}
@@ -416,14 +438,11 @@ export default function PayPage() {
                         : plans
                             .filter((plan) => plan.id !== "free")
                             .map((plan) => {
-                                const isCurrentPlan = activePlanId === plan.id;
                                 return (
                                     <article
                                         key={plan.id}
-                                        className={`group relative flex flex-col justify-between overflow-hidden rounded-3xl border p-6 shadow-lg transition duration-300 hover:-translate-y-1 hover:shadow-2xl ${isCurrentPlan
-                                            ? "border-emerald-200 bg-emerald-50/50 shadow-emerald-100"
-                                            : "border-white/60 bg-white/80 shadow-[#E94057]/10"
-                                            }`}
+                                        className={`group relative flex flex-col justify-between overflow-hidden rounded-3xl border p-6 shadow-lg transition duration-300 hover:-translate-y-1 hover:shadow-2xl $
+                                            : "border-white/60 bg-white/80 shadow-[#E94057]/10"`}
                                     >
                                         <div className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-100">
                                             <div className="absolute inset-0 bg-gradient-to-br from-[#E94057]/12 via-transparent to-[#4B164C]/12" />
@@ -437,11 +456,6 @@ export default function PayPage() {
                                                 {plan.id === "premium" && (
                                                     <span className="rounded-full bg-[#E94057]/10 px-2.5 py-0.5 text-[0.65rem] font-semibold text-[#E94057]">
                                                         Most loved
-                                                    </span>
-                                                )}
-                                                {isCurrentPlan && (
-                                                    <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[0.65rem] font-semibold text-emerald-700">
-                                                        Active
                                                     </span>
                                                 )}
                                             </div>
@@ -483,9 +497,8 @@ export default function PayPage() {
                                         >
                                             {isProcessing && processingPlanId === plan.id
                                                 ? "Processing…"
-                                                : isCurrentPlan
-                                                    ? "Renew plan"
-                                                    : "Choose plan"}
+                                                : "Choose plan"
+                                            }
                                         </button>
                                     </article>
                                 );

@@ -1,5 +1,4 @@
 import { WebView } from 'react-native-webview';
-import Constants from 'expo-constants';
 import { StyleSheet, ActivityIndicator } from 'react-native';
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/config/supabaseConfig';
@@ -33,20 +32,18 @@ export default function SubscriptionScreenSettings() {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <WebView
-                style={styles.webview}
-                source={webviewSource}
-                cacheEnabled={false}
-            />
-        </SafeAreaView>
+        <WebView
+            style={styles.webview}
+            source={webviewSource}
+            cacheEnabled={false}
+        />
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        marginTop: Constants.statusBarHeight,
+        backgroundColor: "red"
     },
     centered: {
         alignItems: 'center',

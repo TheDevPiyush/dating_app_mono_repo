@@ -1,24 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react";
+import { useEffect, useState, useRef } from "react";
+import {
+  useSessionContext,
+  useSupabaseClient,
+} from "@supabase/auth-helpers-react";
 import { useRouter } from "next/navigation";
 import SubscriptionDashboard from "../../components/dashboard/SubscriptionDashboard";
 import { callBackend } from "../../lib/api";
 
 export default function DashboardPage() {
-  const session = useSession();
+  const { session, isLoading } = useSessionContext();
   const supabase = useSupabaseClient();
   const router = useRouter();
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const didSync = useRef(false);
 
+  // Redirect to /auth only AFTER the session has finished loading
   useEffect(() => {
-    if (!session) {
+    if (!isLoading && !session) {
       router.push("/auth");
-      return;
     }
-    console.log(session)
+  }, [isLoading, session, router]);
+
+  // Sync user profile exactly once per page mount when session is confirmed
+  useEffect(() => {
+    if (!session || didSync.current) return;
+    didSync.current = true;
 
     let isMounted = true;
 
@@ -52,10 +61,10 @@ export default function DashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [session, supabase, router]);
+  }, [session, supabase]);
 
-  if (!session) {
-    return null; // Will redirect
+  if (isLoading || !session) {
+    return null; // Loading or will redirect
   }
 
   const handleSignOut = async () => {

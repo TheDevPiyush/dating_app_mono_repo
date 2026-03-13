@@ -46,7 +46,6 @@ export default function SubscriptionScreenHome() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        marginTop: Constants.statusBarHeight,
     },
     centered: {
         alignItems: 'center',

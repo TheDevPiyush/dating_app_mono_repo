@@ -24,6 +24,7 @@ export interface IUser extends Document {
     notificationTokens?: string[];
     isAdmin?: boolean;
     isModerator?: boolean;
+    girlEmployDetails: IPookieyGirlEmployeeDetails
 }
 
 export interface IUserProfile {
@@ -70,6 +71,17 @@ export interface IUserSubscriptionSnapshot {
     lastPaymentAt?: Date | null;
     provider?: "razorpay" | "stripe" | "paypal" | "apple" | "google" | null;
     updatedAt?: Date | null;
+}
+
+
+export interface IPookieyGirlEmployeeDetails {
+    isGirlEmployee: boolean,
+    workingHourStart?: Date | null,
+    workingHourEnd?: Date | null,
+}
+
+export interface ICallTokenData {
+
 }
 
 const UserSchema = new Schema<IUser>(
@@ -155,6 +167,11 @@ const UserSchema = new Schema<IUser>(
         notificationTokens: { type: [String], default: [] },
         isAdmin: { type: Boolean, default: false },
         isModerator: { type: Boolean, default: false },
+        girlEmployDetails: {
+            isGirlEmployee: { type: Boolean, default: false },
+            workingHourEnd: { type: Date, default: null },
+            workingHourStart: { type: Date, default: null },
+        }
     },
     { timestamps: true }
 );
