@@ -34,7 +34,9 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build Android (AAB)
-        run: eas build --platform android --profile production
+        run: npx eas build --platform android --profile production
+        working-directory: App
 
       - name: Build iOS
-        run: eas build --platform ios --profile production
+        run: npx eas build --platform ios --profile production
+        working-directory: App
