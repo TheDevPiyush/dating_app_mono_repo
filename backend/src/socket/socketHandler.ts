@@ -448,7 +448,7 @@ export const initializeSocket = (httpServer: HTTPServer) => {
 
                 // Notify employee
                 io.to(receiverRoom).emit("explore_call_incoming", {
-                    callId: call._id.toString(),
+                    callId: (call._id as mongoose.Types.ObjectId).toString(),
                     callerId: userId,
                     callerIdentity: userId,
                     callerName,
@@ -459,7 +459,7 @@ export const initializeSocket = (httpServer: HTTPServer) => {
 
                 // Confirm to caller
                 socket.emit("explore_call_initiated", {
-                    callId: call._id.toString(),
+                    callId: (call._id as mongoose.Types.ObjectId).toString(),
                     employeeUserId,
                     callType,
                     balance,
@@ -663,7 +663,7 @@ export const initializeSocket = (httpServer: HTTPServer) => {
                         endedAt: now,
                         durationSeconds,
                         tokensSpent: call.tickCount,
-                    }).catch(() => {});
+                    }).catch(() => { });
 
                     activeExploreCalls.delete(key);
                 }
