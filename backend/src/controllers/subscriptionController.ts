@@ -13,6 +13,10 @@ import {
     handlePaymentFailed,
     abandonPendingPayments,
 } from "../services/subscriptionService";
+import {
+    handleRechargeCaptured,
+    handleRechargeFailed,
+} from "../services/walletService";
 import { getRazorpayPublicKey } from "../config/razorpay";
 import { Types } from "mongoose";
 import crypto from "crypto";
@@ -219,11 +223,21 @@ export const subscriptionWebhook = async (req: Request, res: Response) => {
         return;
     }
 
+    const isRecharge = payment.notes?.type === "recharge";
+
     try {
-        if (event === "payment.captured") {
-            await handlePaymentCaptured(payment);
-        } else if (event === "payment.failed") {
-            await handlePaymentFailed(payment);
+        if (isRecharge) {
+            if (event === "payment.captured") {
+                await handleRechargeCaptured(payment);
+            } else if (event === "payment.failed") {
+                await handleRechargeFailed(payment);
+            }
+        } else {
+            if (event === "payment.captured") {
+                await handlePaymentCaptured(payment);
+            } else if (event === "payment.failed") {
+                await handlePaymentFailed(payment);
+            }
         }
     } catch (error) {
         console.error(`Webhook handler failed for event [${event}]:`, error);

@@ -17,6 +17,9 @@ import adminRouter from "./routes/adminRoutes";
 import supportRouter from "./routes/supportRoutes";
 import announcementRouter from "./routes/announcementRoutes";
 import blogRoutes from "./routes/blog.routes";
+import walletRouter from "./routes/walletRoutes";
+import exploreRouter from "./routes/exploreRoutes";
+import { seedDefaultMinutePacks } from "./models/MinutePack";
 
 dotenv.config();
 
@@ -45,6 +48,7 @@ app.get("/health", (req, res) => {
     res.status(200).json({ status: "ok" });
 });
 
+app.use('/api/v1/wallet', walletRouter);
 app.use('/api/v1/user', userRouter);
 app.use('/api/v1/interaction', interactionRouter);
 app.use('/api/v1/aws', awsRouter);
@@ -54,7 +58,9 @@ app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/support', supportRouter);
 app.use('/api/v1/announcements', announcementRouter);
 app.use('/api/v1/blog', blogRoutes);
+app.use('/api/v1/explore', exploreRouter);
 
-httpServer.listen(PORT as number, "0.0.0.0", () => {
+httpServer.listen(PORT as number, "0.0.0.0", async () => {
     console.info(`Socket.io & Server running on port ${PORT}`);
+    await seedDefaultMinutePacks().catch(console.error);
 });

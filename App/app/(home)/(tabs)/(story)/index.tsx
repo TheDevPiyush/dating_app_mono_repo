@@ -1176,7 +1176,13 @@ export default function StoriesScreen() {
         </View>
 
         {!hasAnyStories && !isLoading ? (
-          <View style={styles.emptyContainer}>
+          <ScrollView
+            style={styles.container}
+            contentContainerStyle={styles.emptyContainer}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primaryBackgroundColor} />
+            }
+          >
             <Ionicons name="camera-outline" size={80} color={Colors.text.tertiary} />
             <ThemedText type="subtitle" style={styles.emptyText}>{t('stories.noStoriesYet')}</ThemedText>
             <ThemedText style={styles.emptySubtext}>
@@ -1188,7 +1194,7 @@ export default function StoriesScreen() {
                 <ThemedText style={styles.emptyButtonText}>{t('stories.postYourStory')}</ThemedText>
               </TouchableOpacity>
             )}
-          </View>
+          </ScrollView>
         ) : categorizedStories ? (
           <FlatList
             data={[]}

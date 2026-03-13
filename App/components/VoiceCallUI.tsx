@@ -23,6 +23,8 @@ interface VoiceCallUIProps {
   onAnswer?: () => void;
   onReject?: () => void;
   onEnd?: () => void;
+  isExploreCall?: boolean;
+  remainingBalance?: number | null;
 }
 
 export const VoiceCallUI: React.FC<VoiceCallUIProps> = ({
@@ -40,6 +42,8 @@ export const VoiceCallUI: React.FC<VoiceCallUIProps> = ({
   onAnswer,
   onReject,
   onEnd,
+  isExploreCall = false,
+  remainingBalance = null,
 }) => {
   const [callSeconds, setCallSeconds] = useState(0);
   const callStartRef = useRef<number | null>(null);
@@ -113,7 +117,16 @@ export const VoiceCallUI: React.FC<VoiceCallUIProps> = ({
               <ThemedText style={styles.userName} numberOfLines={1}>
                 {userName}
               </ThemedText>
-              {isConnected && <ThemedText style={styles.timerText}>{callTimerText}</ThemedText>}
+              {isConnected && (
+                <ThemedText style={styles.timerText}>
+                  {callTimerText}
+                  {isExploreCall && remainingBalance != null && (
+                    <ThemedText style={[styles.timerText, remainingBalance <= 2 ? { color: '#FF453A' } : { color: '#FFD60A' }]}>
+                      {'  ●  '}{remainingBalance} {remainingBalance === 1 ? 'Min Remaining' : 'Mins Remaining'}
+                    </ThemedText>
+                  )}
+                </ThemedText>
+              )}
               <ThemedText style={styles.statusText}>{statusText}</ThemedText>
             </View>
           </View>
@@ -144,8 +157,8 @@ export const VoiceCallUI: React.FC<VoiceCallUIProps> = ({
             {isIncoming && !isConnected && !isConnecting ? (
               // Incoming: show swipeable control
               <CallSwipeControl
-                onAnswer={onAnswer || (() => {})}
-                onReject={onReject || (() => {})}
+                onAnswer={onAnswer || (() => { })}
+                onReject={onReject || (() => { })}
                 iconName="call"
                 showVideoIcons={false}
               />
@@ -246,12 +259,10 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 48,
     color: Colors.primary.white,
-    fontWeight: 'bold',
   },
   userName: {
     fontSize: 30,
     color: Colors.primary.white,
-    fontWeight: '700',
     marginBottom: 6,
   },
   statusText: {
@@ -270,7 +281,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(10, 12, 18, 0.65)',
   },
   timerText: {
-    fontSize: 16,
+    fontSize: 14,
     color: 'rgba(255, 255, 255, 0.92)',
     marginBottom: 4,
   },

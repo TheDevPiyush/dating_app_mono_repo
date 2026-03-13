@@ -60,6 +60,8 @@ export function useWebRTC() {
     matchId: null,
     endedAt: null,
   });
+  const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const remoteDescSetRef = useRef<boolean>(false);
 
   // Ensure permissions
   const ensurePermissions = useCallback(async (needsVideo: boolean) => {
@@ -114,10 +116,26 @@ export function useWebRTC() {
     matchIdRef.current = null;
     receiverIdRef.current = null;
     isCallerRef.current = false;
+    pendingCandidatesRef.current = [];
+    remoteDescSetRef.current = false;
   }, []);
 
   const clearError = useCallback(() => {
     setError(null);
+  }, []);
+
+  const flushPendingCandidates = useCallback(async () => {
+    const pc = peerConnectionRef.current;
+    if (!pc) return;
+    const candidates = pendingCandidatesRef.current;
+    pendingCandidatesRef.current = [];
+    for (const candidate of candidates) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (e) {
+        console.error('Error adding buffered ICE candidate:', e);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -158,9 +176,18 @@ export function useWebRTC() {
       const state = pc.connectionState;
       if (state === 'connected') {
         setStatus('connected');
-        // Clear incomingCall once connected - UI will stay visible via status
         setIncomingCall(null);
       } else if (state === 'disconnected' || state === 'failed' || state === 'closed') {
+        cleanup();
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      const state = pc.iceConnectionState;
+      if (state === 'connected' || state === 'completed') {
+        setStatus('connected');
+        setIncomingCall(null);
+      } else if (state === 'failed') {
         cleanup();
       }
     };
@@ -297,6 +324,8 @@ export function useWebRTC() {
               return;
             }
             await pc.setRemoteDescription(new RTCSessionDescription(data.answer as any));
+            remoteDescSetRef.current = true;
+            await flushPendingCandidates();
             setStatus('connecting');
             resolve();
           } catch (err) {
@@ -359,6 +388,8 @@ export function useWebRTC() {
       }
 
       await pc.setRemoteDescription(new RTCSessionDescription(incomingCall.offer as any));
+      remoteDescSetRef.current = true;
+      await flushPendingCandidates();
 
       // Create answer
       const answer = await pc.createAnswer();
@@ -471,12 +502,17 @@ export function useWebRTC() {
     };
 
     const onIceCandidate = async (data: { candidate: RTCIceCandidateInit }) => {
-      if (peerConnectionRef.current && data.candidate) {
-        try {
-          await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
-        } catch (e) {
-          console.error('Error adding ICE candidate:', e);
-        }
+      if (!data.candidate) return;
+
+      if (!remoteDescSetRef.current || !peerConnectionRef.current) {
+        pendingCandidatesRef.current.push(data.candidate);
+        return;
+      }
+
+      try {
+        await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+      } catch (e) {
+        console.error('Error adding ICE candidate:', e);
       }
     };
 

@@ -11,7 +11,9 @@ import { VoiceCallUI } from '@/components/VoiceCallUI';
 import { VideoCallUI } from '@/components/VideoCallUI';
 import { useWebRTCVoice } from '@/hooks/useWebRTCVoice';
 import { useWebRTCVideo } from '@/hooks/useWebRTCVideo';
+import { useExploreWebRTC } from '@/hooks/useExploreWebRTC';
 import { useMessagingStore } from '@/store/messagingStore';
+import { useWalletStore } from '@/store/walletStore';
 import CustomDialog, { DialogType } from '@/components/CustomDialog';
 import { Asset } from 'expo-asset';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
@@ -20,6 +22,8 @@ import type { AudioPlayer, AudioStatus } from 'expo-audio';
 type CallContextValue = {
   makeCall: (matchId: string, receiverId: string, receiverIdentity: string) => Promise<void>;
   makeVideoCall: (matchId: string, receiverId: string, receiverIdentity: string) => Promise<void>;
+  makeExploreCall: (employeeUserId: string, employeeName: string) => Promise<void>;
+  makeExploreVideoCall: (employeeUserId: string, employeeName: string) => Promise<void>;
   answerCall: () => Promise<void>;
   rejectCall: () => void;
   endCall: () => void;
@@ -36,6 +40,7 @@ const CallContext = createContext<CallContextValue | null>(null);
 
 export function CallProvider({ children }: { children: React.ReactNode }) {
   const { inbox } = useMessagingStore();
+  const { decrementBalance } = useWalletStore();
   const {
     callStatus,
     incomingCall,
@@ -66,6 +71,45 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     remoteStream,
     clearError: clearVideoError,
   } = useWebRTCVideo();
+
+  // Explore calls
+  const {
+    status: exploreStatus,
+    error: exploreError,
+    isMuted: exploreIsMuted,
+    isVideoEnabled: exploreVideoEnabled,
+    localStream: exploreLocalStream,
+    remoteStream: exploreRemoteStream,
+    incomingCall: incomingExploreCall,
+    remainingBalance: exploreRemainingBalance,
+    minutesElapsed: exploreMinutesElapsed,
+    initiateCall: initiateExploreCall,
+    answerCall: answerExploreCall,
+    rejectCall: rejectExploreCall,
+    endCall: endExploreCall,
+    toggleMute: toggleExploreMute,
+    toggleVideo: toggleExploreVideo,
+    flipCamera: flipExploreCamera,
+    clearError: clearExploreError,
+  } = useExploreWebRTC();
+
+  const [exploreCallName, setExploreCallName] = useState<string>('');
+  const [exploreCallType, setExploreCallType] = useState<'voice' | 'video'>('voice');
+
+  // When an incoming explore call arrives, set the caller's name for the UI
+  useEffect(() => {
+    if (incomingExploreCall) {
+      setExploreCallName(incomingExploreCall.callerName || 'User');
+      setExploreCallType(incomingExploreCall.callType);
+    }
+  }, [incomingExploreCall]);
+
+  // Update wallet balance when explore tick comes in
+  useEffect(() => {
+    if (exploreRemainingBalance != null) {
+      useWalletStore.getState().setBalance(exploreRemainingBalance);
+    }
+  }, [exploreRemainingBalance]);
 
   // -----------------------------
   // Audio routing logic
@@ -120,13 +164,38 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     }
   }, [videoStatus, setupCallAudio]);
 
+  // Explore voice call → earpiece, explore video call → speaker
+  useEffect(() => {
+    if (exploreStatus === 'connected') {
+      const useSpeaker = exploreCallType === 'video';
+      setIsSpeakerOn(useSpeaker);
+      setupCallAudio(useSpeaker);
+    }
+  }, [exploreStatus, exploreCallType, setupCallAudio]);
+
   // Reset audio when everything ends
   useEffect(() => {
-    if (callStatus.isEnded && videoStatus === 'idle') {
+    if (callStatus.isEnded && videoStatus === 'idle' && exploreStatus === 'idle') {
       resetCallAudio();
       setIsSpeakerOn(false);
     }
-  }, [callStatus.isEnded, videoStatus, resetCallAudio]);
+  }, [callStatus.isEnded, videoStatus, exploreStatus, resetCallAudio]);
+
+  const makeExploreCallFn = useCallback(async (employeeUserId: string, employeeName: string) => {
+    setExploreCallName(employeeName);
+    setExploreCallType('voice');
+    try {
+      await initiateExploreCall({ employeeUserId, callType: 'voice' });
+    } catch {}
+  }, [initiateExploreCall]);
+
+  const makeExploreVideoCallFn = useCallback(async (employeeUserId: string, employeeName: string) => {
+    setExploreCallName(employeeName);
+    setExploreCallType('video');
+    try {
+      await initiateExploreCall({ employeeUserId, callType: 'video' });
+    } catch {}
+  }, [initiateExploreCall]);
 
   // -----------------------------
   // Ringtone logic
@@ -151,15 +220,16 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (callStatus.isConnected || videoStatus === 'connected') {
+    if (callStatus.isConnected || videoStatus === 'connected' || exploreStatus === 'connected') {
       stopRingtone();
     }
-  }, [callStatus.isConnected, videoStatus, stopRingtone]);
+  }, [callStatus.isConnected, videoStatus, exploreStatus, stopRingtone]);
 
   useEffect(() => {
     const shouldRing =
       (!!incomingCall && callStatus.isRinging && !callStatus.isConnected) ||
-      (!!incomingVideoCall && videoStatus === 'ringing');
+      (!!incomingVideoCall && videoStatus === 'ringing') ||
+      (!!incomingExploreCall && exploreStatus === 'ringing');
 
     if (!shouldRing) {
       stopRingtone();
@@ -210,9 +280,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }, [
     incomingCall,
     incomingVideoCall,
+    incomingExploreCall,
     callStatus.isRinging,
     callStatus.isConnected,
     videoStatus,
+    exploreStatus,
     ringAsset,
     stopRingtone,
   ]);
@@ -224,6 +296,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     () => ({
       makeCall,
       makeVideoCall,
+      makeExploreCall: makeExploreCallFn,
+      makeExploreVideoCall: makeExploreVideoCallFn,
       answerCall,
       rejectCall,
       endCall,
@@ -238,6 +312,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     [
       makeCall,
       makeVideoCall,
+      makeExploreCallFn,
+      makeExploreVideoCallFn,
       answerCall,
       rejectCall,
       endCall,
@@ -289,6 +365,51 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         remoteStream={remoteStream}
         videoTracks={videoTracks}
       />
+
+      {/* Explore voice call UI */}
+      {exploreCallType === 'voice' && (
+        <VoiceCallUI
+          visible={exploreStatus !== 'idle'}
+          isIncoming={!!incomingExploreCall}
+          isConnected={exploreStatus === 'connected'}
+          isRinging={exploreStatus === 'ringing'}
+          isConnecting={exploreStatus === 'connecting'}
+          userName={exploreCallName || 'Employee'}
+          isMuted={exploreIsMuted}
+          isSpeakerOn={isSpeakerOn}
+          onToggleMute={toggleExploreMute}
+          onAudioDevicePress={onAudioDevicePress}
+          onAnswer={answerExploreCall}
+          onReject={rejectExploreCall}
+          onEnd={endExploreCall}
+          isExploreCall
+          remainingBalance={exploreRemainingBalance}
+        />
+      )}
+
+      {/* Explore video call UI */}
+      {exploreCallType === 'video' && (
+        <VideoCallUI
+          visible={exploreStatus !== 'idle'}
+          isIncoming={!!incomingExploreCall}
+          isConnected={exploreStatus === 'connected'}
+          isRinging={exploreStatus === 'ringing'}
+          isConnecting={exploreStatus === 'connecting'}
+          userName={exploreCallName || 'Employee'}
+          isMuted={exploreIsMuted}
+          isVideoEnabled={exploreVideoEnabled}
+          onToggleMute={toggleExploreMute}
+          onToggleVideo={toggleExploreVideo}
+          onFlipCamera={flipExploreCamera}
+          onAnswer={answerExploreCall}
+          onReject={rejectExploreCall}
+          onEnd={endExploreCall}
+          localStream={exploreLocalStream}
+          remoteStream={exploreRemoteStream}
+          isExploreCall
+          remainingBalance={exploreRemainingBalance}
+        />
+      )}
     </CallContext.Provider>
   );
 }
