@@ -169,8 +169,8 @@ const UserSchema = new Schema<IUser>(
         isModerator: { type: Boolean, default: false },
         girlEmployDetails: {
             isGirlEmployee: { type: Boolean, default: false },
-            workingHourEnd: { type: Boolean, default: null },
-            workingHourStart: { type: Boolean, default: null },
+            workingHourEnd: { type: Date, default: null },
+            workingHourStart: { type: Date, default: null },
         }
     },
     { timestamps: true }
