@@ -28,6 +28,8 @@ interface VideoCallUIProps {
   localStream?: MediaStream | null;
   remoteStream?: MediaStream | null;
   videoTracks?: Map<string, any>;
+  isExploreCall?: boolean;
+  remainingBalance?: number | null;
 }
 
 export const VideoCallUI: React.FC<VideoCallUIProps> = ({
@@ -49,6 +51,8 @@ export const VideoCallUI: React.FC<VideoCallUIProps> = ({
   localStream,
   remoteStream,
   videoTracks = new Map(),
+  isExploreCall = false,
+  remainingBalance = null,
 }) => {
   const [showControls, setShowControls] = useState(true);
   const [callSeconds, setCallSeconds] = useState(0);
@@ -185,7 +189,16 @@ export const VideoCallUI: React.FC<VideoCallUIProps> = ({
                 <ThemedText style={styles.userName} numberOfLines={1}>
                   {userName}
                 </ThemedText>
-                {isConnected && <ThemedText style={styles.timerText}>{callTimerText}</ThemedText>}
+                {isConnected && (
+                  <ThemedText style={styles.timerText}>
+                    {callTimerText}
+                    {isExploreCall && remainingBalance != null && (
+                      <ThemedText style={[styles.timerText, remainingBalance <= 2 ? { color: '#FF453A' } : { color: '#FFD60A' }]}>
+                        {'  ●  '}{remainingBalance} {remainingBalance === 1 ? 'Min Remaining' : 'Mins Remaining'}
+                      </ThemedText>
+                    )}
+                  </ThemedText>
+                )}
                 <ThemedText style={styles.statusText}>{statusText}</ThemedText>
               </View>
             </View>
@@ -203,8 +216,8 @@ export const VideoCallUI: React.FC<VideoCallUIProps> = ({
               )}
               {isIncoming && !isConnected && !isConnecting ? (
                 <CallSwipeControl
-                  onAnswer={onAnswer || (() => {})}
-                  onReject={onReject || (() => {})}
+                  onAnswer={onAnswer || (() => { })}
+                  onReject={onReject || (() => { })}
                   iconName="videocam"
                   showVideoIcons={true}
                 />
@@ -282,7 +295,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.78)',
   },
   timerText: {
-    fontSize: 16,
+    fontSize: 14,
     color: 'rgba(255, 255, 255, 0.92)',
     marginBottom: 4,
   },

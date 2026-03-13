@@ -7,3 +7,7 @@ export { Subscription } from "./subscription";
 export { PaymentTransaction } from "./payment";
 export { Referral } from "./Referral";
 export { Announcement } from "./Announcement";
+export { Call } from "./call";
+export { WalletTransaction } from "./WalletTransaction";
+export { MinutePack } from "./MinutePack";
+export { RechargePayment } from "./RechargePayment";

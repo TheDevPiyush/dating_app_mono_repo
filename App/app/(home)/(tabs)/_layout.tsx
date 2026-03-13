@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { messageAPI } from '@/APIs/messageAPIs';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Home, MessageCircle, Heart, Camera, Settings } from 'lucide-react-native';
+import { Home, MessageCircle, Heart, Camera, Settings, Compass } from 'lucide-react-native';
 
 // Wrapper component for chat icon with badge
 function ChatIconWithBadge({ color, focused }: { color: string; focused: boolean }) {
@@ -16,9 +16,9 @@ function ChatIconWithBadge({ color, focused }: { color: string; focused: boolean
 
   return (
     <View style={{ position: 'relative' }}>
-      <MessageCircle 
-        size={26} 
-        color={focused ? Colors.primaryBackgroundColor : '#D1D1D6'} 
+      <MessageCircle
+        size={26}
+        color={focused ? Colors.primaryBackgroundColor : '#D1D1D6'}
         strokeWidth={focused ? 2.5 : 2}
       />
       {totalUnreadCount > 0 && (
@@ -84,7 +84,7 @@ export default function TabLayout() {
   useEffect(() => {
     const { setReloadTrigger } = useMessagingStore.getState();
     setReloadTrigger(loadInbox);
-    
+
     return () => {
       setReloadTrigger(null);
     };
@@ -103,9 +103,9 @@ export default function TabLayout() {
         options={{
           title: t('tabs.home'),
           tabBarIcon: ({ focused }) => (
-            <Home 
-              size={26} 
-              color={focused ? Colors.primaryBackgroundColor : '#D1D1D6'} 
+            <Home
+              size={26}
+              color={focused ? Colors.primaryBackgroundColor : '#D1D1D6'}
               strokeWidth={focused ? 2.5 : 2}
             />
           ),
@@ -121,13 +121,26 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="(explore)"
+        options={{
+          title: t('tabs.explore'),
+          tabBarIcon: ({ focused }) => (
+            <Compass
+              size={26}
+              color={focused ? Colors.primaryBackgroundColor : '#D1D1D6'}
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="(likes)"
         options={{
           title: t('tabs.likes'),
           tabBarIcon: ({ focused }) => (
-            <Heart 
-              size={26} 
-              color={focused ? Colors.primaryBackgroundColor : '#D1D1D6'} 
+            <Heart
+              size={26}
+              color={focused ? Colors.primaryBackgroundColor : '#D1D1D6'}
               strokeWidth={focused ? 2.5 : 2}
             />
           ),
@@ -138,9 +151,9 @@ export default function TabLayout() {
         options={{
           title: t('tabs.stories'),
           tabBarIcon: ({ focused }) => (
-            <Camera 
-              size={26} 
-              color={focused ? Colors.primaryBackgroundColor : '#D1D1D6'} 
+            <Camera
+              size={26}
+              color={focused ? Colors.primaryBackgroundColor : '#D1D1D6'}
               strokeWidth={focused ? 2.5 : 2}
             />
           ),
@@ -151,9 +164,9 @@ export default function TabLayout() {
         options={{
           title: t('tabs.setting'),
           tabBarIcon: ({ focused }) => (
-            <Settings 
-              size={26} 
-              color={focused ? Colors.primaryBackgroundColor : '#D1D1D6'} 
+            <Settings
+              size={26}
+              color={focused ? Colors.primaryBackgroundColor : '#D1D1D6'}
               strokeWidth={focused ? 2.5 : 2}
             />
           ),

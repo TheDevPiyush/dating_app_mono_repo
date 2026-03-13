@@ -24,7 +24,8 @@ export interface IUser extends Document {
     notificationTokens?: string[];
     isAdmin?: boolean;
     isModerator?: boolean;
-    girlEmployDetails: IPookieyGirlEmployeeDetails
+    wallet: IUserWallet;
+    girlEmployDetails: IPookieyGirlEmployeeDetails;
 }
 
 export interface IUserProfile {
@@ -75,13 +76,16 @@ export interface IUserSubscriptionSnapshot {
 
 
 export interface IPookieyGirlEmployeeDetails {
-    isGirlEmployee: boolean,
-    workingHourStart?: Date | null,
-    workingHourEnd?: Date | null,
+    isGirlEmployee: boolean;
+    workingHourStart?: Date | null;
+    workingHourEnd?: Date | null;
+    isAvailableForCall?: boolean;
 }
 
-export interface ICallTokenData {
-
+export interface IUserWallet {
+    balance: number;
+    totalRecharged: number;
+    lastRechargedAt?: Date | null;
 }
 
 const UserSchema = new Schema<IUser>(
@@ -167,10 +171,16 @@ const UserSchema = new Schema<IUser>(
         notificationTokens: { type: [String], default: [] },
         isAdmin: { type: Boolean, default: false },
         isModerator: { type: Boolean, default: false },
+        wallet: {
+            balance: { type: Number, default: 0 },
+            totalRecharged: { type: Number, default: 0 },
+            lastRechargedAt: { type: Date, default: null },
+        },
         girlEmployDetails: {
             isGirlEmployee: { type: Boolean, default: false },
             workingHourEnd: { type: Date, default: null },
             workingHourStart: { type: Date, default: null },
+            isAvailableForCall: { type: Boolean, default: true },
         }
     },
     { timestamps: true }
