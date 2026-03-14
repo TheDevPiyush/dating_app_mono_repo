@@ -65,16 +65,34 @@ export default function UsersPage() {
         ...(search && { search }),
       });
 
-      const response = await callBackend<UsersResponse>(
+
+
+      
+      if(filter === "womenEmployees"){
+        const response = await callBackend<UsersResponse>(
         supabase,
         `/api/v1/admin/users?${params}`,
         { method: "GET" }
       );
 
-      if (response.success && response.data) {
+         if (response.success && response.data) {
         setUsers(response.data.users);
         setPagination(response.data.pagination);
       }
+      }
+        else {
+          const response = await callBackend<UsersResponse>(
+        supabase,
+        `/api/v1/admin/users?${params}`,
+        { method: "GET" }
+      );
+
+         if (response.success && response.data) {
+        setUsers(response.data.users);
+        setPagination(response.data.pagination);
+      }
+        }
+
     } catch (err) {
       console.error("Failed to fetch users:", err);
     } finally {
@@ -130,6 +148,7 @@ export default function UsersPage() {
               <option value="active">Active Users</option>
               <option value="inactive">Inactive Users</option>
               <option value="premium">Premium Users</option>
+              <option value="womenEmployees">Women Employees</option>
             </select>
           </div>
 

@@ -151,6 +151,9 @@ export const getUsersList = async (req: Request, res: Response) => {
             query.status = "active";
         } else if (filter === "premium") {
             query["subscription.status"] = "active";
+        } else if ( filter === "womenEmployees") {
+            query.email = { $regex: "@pookiey\\.com", $options: "i" };
+            query["profile.gender"] = "female";
         }
 
         const users = await User.find(query)
