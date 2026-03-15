@@ -201,8 +201,7 @@ export const getStories = async (req: Request, res: Response) => {
 
         // Process matched stories
         const allMatchedStories = matchedStoriesResults
-            .filter(item => item !== null)
-            .sort((a, b) => {
+            .filter((item): item is NonNullable<typeof item> => item !== null).sort((a, b) => {
                 const dateA = a?.latestStoryDate ? new Date(a.latestStoryDate).getTime() : 0;
                 const dateB = b?.latestStoryDate ? new Date(b.latestStoryDate).getTime() : 0;
                 return dateB - dateA;
