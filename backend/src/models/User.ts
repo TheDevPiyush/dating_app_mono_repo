@@ -180,7 +180,12 @@ const UserSchema = new Schema<IUser>(
             isGirlEmployee: { type: Boolean, default: false },
             workingHourEnd: { type: Date, default: null },
             workingHourStart: { type: Date, default: null },
+            workingDateStart: { type: Date, default: null },
+            workingDateEnd: { type: Date, default: null },
             isAvailableForCall: { type: Boolean, default: true },
+            isVideoCallAllowed: { type: Boolean, default: false },
+            isAudioCallAllowed: { type: Boolean, default: false },
+
         }
     },
     { timestamps: true }
