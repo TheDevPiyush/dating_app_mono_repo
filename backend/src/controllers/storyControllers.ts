@@ -23,8 +23,8 @@ const formatStoryUser = async (userId: string, currentUserId: string, userStorie
             duration: story.type === "video" ? 15 : 5, // 15s for video, 5s for image
             isSeen: story.views.includes(currentUserId),
             isLiked: story.likes?.includes(currentUserId) || false,
-            likesCount: story.likes?.length || 0,
-            viewsCount: story.views?.length || 0,
+            likesCount: (story.likes?.length + 1) || 0,
+            viewsCount: (story.views?.length + 1) || 0,
             createdAt: story.createdAt
         })),
         isMe: isMe,

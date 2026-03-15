@@ -307,11 +307,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({ user, onMessage }) =>
               variant="overlay"
               topOffset={insets.top}
               onPress={() => {
-                if (returnToStory === 'true') {
-                  router.push('/(home)/(tabs)/(story)/' as any);
-                } else {
-                  router.back();
-                }
+                router.back();
               }}
             />
 
