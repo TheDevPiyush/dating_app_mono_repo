@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { X, Home, Info, MessageSquare, Users, HelpCircle, LogIn, LogOut, Rss } from "lucide-react";
+import { X, Info, Users, HelpCircle, LogIn, LogOut, Rss, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react";
+import { callBackend } from "@/lib/api";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -20,10 +21,27 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const session = useSession();
   const supabase = useSupabaseClient();
   const [mounted, setMounted] = useState(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!session) {
+      setIsAdmin(false);
+      return;
+    }
+    let cancelled = false;
+    callBackend<{ isAdmin?: boolean }>(supabase, "/api/v1/user/me", { method: "GET" })
+      .then((res) => {
+        if (!cancelled) setIsAdmin(!!res.data?.isAdmin);
+      })
+      .catch(() => {
+        if (!cancelled) setIsAdmin(false);
+      });
+    return () => { cancelled = true; };
+  }, [session, supabase]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -37,6 +55,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     { name: "Support", href: "/support", icon: HelpCircle },
     { name: "Blog", href: "/blog", icon: Rss },
   ];
+  const adminNavItem = { name: "Admin", href: "/admin", icon: ShieldCheck };
 
   if (!mounted) return null;
 
@@ -103,7 +122,21 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   </Link>
                 );
               })}
-              
+              {isAdmin && (
+                <Link
+                  href={adminNavItem.href}
+                  onClick={onClose}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-bold transition-colors",
+                    pathname?.startsWith("/admin")
+                      ? "bg-[#E94057]/10 text-[#E94057]"
+                      : "text-white hover:bg-white/10"
+                  )}
+                >
+                  <adminNavItem.icon className={cn("h-5 w-5", pathname?.startsWith("/admin") ? "text-[#E94057]" : "text-white")} />
+                  {adminNavItem.name}
+                </Link>
+              )}
               {/* Login/Logout */}
               {session ? (
                 <button

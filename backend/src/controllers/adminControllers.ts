@@ -8,6 +8,7 @@ import { Subscription } from "../models/subscription";
 import { Report } from "../models/Report";
 import { Story } from "../models/Story";
 import { Support } from "../models/Support";
+import { Call } from "../models/call";
 
 // Helper to get date range
 const getDateRange = (filter: string) => {
@@ -847,5 +848,415 @@ export const updateSupportStatus = async (req: Request, res: Response) => {
             success: false,
             message: `Failed to update support message status: ${errorMessage}`
         });
+    }
+};
+
+// Women employees: list users with email @pookiey.com and profile.gender === female
+export const getWomenEmployees = async (req: Request, res: Response) => {
+    try {
+        const { page = 1, limit = 50 } = req.query;
+        const pageNum = Math.max(1, Number(page) || 1);
+        const limitNum = Math.min(200, Math.max(10, Number(limit) || 50));
+        const skip = (pageNum - 1) * limitNum;
+
+        const query = {
+            email: { $regex: "@pookiey\\.com", $options: "i" },
+            "profile.gender": "female",
+        };
+
+        const users = await User.find(query)
+            .select("user_id email displayName photoURL status createdAt lastLoginAt profile")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limitNum)
+            .lean();
+
+        const total = await User.countDocuments(query);
+
+        res.json({
+            success: true,
+            data: {
+                users,
+                pagination: {
+                    page: pageNum,
+                    limit: limitNum,
+                    total,
+                    pages: Math.ceil(total / limitNum),
+                },
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Failed to fetch women employees" });
+    }
+};
+
+// Women employee analytics (call-based metrics for receiverId = employee)
+// Query: range = "today" | "weekly" | "monthly" | "all" — filters metrics and timeSeries to that window
+export const getWomenEmployeeAnalytics = async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.params;
+        const range = (req.query.range as string) || "all";
+        const validRange = ["today", "weekly", "monthly", "all"].includes(range) ? range : "all";
+        const decodedUserId = decodeURIComponent(userId);
+
+        const user = await User.findOne({
+            $and: [
+                { $or: [{ email: decodedUserId }, { user_id: decodedUserId }] },
+                { email: { $regex: "@pookiey\\.com", $options: "i" } },
+                { "profile.gender": "female" },
+            ],
+        }).lean();
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "Employee not found" });
+        }
+
+        const employeeId = user.user_id;
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - 7);
+        startOfWeek.setHours(0, 0, 0, 0);
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOf30Days = new Date(now);
+        startOf30Days.setDate(now.getDate() - 30);
+        startOf30Days.setHours(0, 0, 0, 0);
+        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        const newCallerThreshold = new Date(now);
+        newCallerThreshold.setDate(now.getDate() - 30);
+        newCallerThreshold.setHours(0, 0, 0, 0);
+
+        const baseMatch = { receiverId: employeeId };
+        const dateFilter =
+            validRange === "today"
+                ? { createdAt: { $gte: startOfToday } }
+                : validRange === "weekly"
+                    ? { createdAt: { $gte: startOfWeek } }
+                    : validRange === "monthly"
+                        ? { createdAt: { $gte: startOf30Days } }
+                        : {};
+        const rangeMatch = { ...baseMatch, ...(Object.keys(dateFilter).length ? dateFilter : {}) };
+
+        const [
+            allCalls,
+            endedCalls,
+            rangeCalls,
+            rangeEndedCalls,
+            weeklyAgg,
+            monthlyAgg,
+            statusBreakdown,
+            typeBreakdown,
+            byHour,
+            byDay,
+            callerCounts,
+            thisMonthCalls,
+            lastMonthCalls,
+            timeSeriesWeekly,
+            timeSeriesMonthly,
+            timeSeriesTodayByHour,
+            callersAgg,
+        ] = await Promise.all([
+            Call.find(baseMatch).lean(),
+            Call.find({ ...baseMatch, status: "ended" }).lean(),
+            Call.find(rangeMatch).lean(),
+            Call.find({ ...rangeMatch, status: "ended" }).lean(),
+            Call.aggregate([
+                { $match: { ...baseMatch, status: "ended", createdAt: { $gte: startOfWeek } } },
+                { $group: { _id: null, total: { $sum: "$durationSeconds" } } },
+            ]),
+            Call.aggregate([
+                { $match: { ...baseMatch, status: "ended", createdAt: { $gte: startOfMonth } } },
+                { $group: { _id: null, total: { $sum: "$durationSeconds" } } },
+            ]),
+            Call.aggregate([
+                { $match: rangeMatch },
+                { $group: { _id: "$status", count: { $sum: 1 } } },
+            ]),
+            Call.aggregate([
+                { $match: rangeMatch },
+                { $group: { _id: "$callType", count: { $sum: 1 } } },
+            ]),
+            Call.aggregate([
+                { $match: rangeMatch },
+                { $project: { hour: { $hour: "$createdAt" } } },
+                { $group: { _id: "$hour", count: { $sum: 1 } } },
+                { $sort: { _id: 1 } },
+            ]),
+            Call.aggregate([
+                { $match: rangeMatch },
+                { $project: { day: { $dayOfWeek: "$createdAt" } } },
+                { $group: { _id: "$day", count: { $sum: 1 } } },
+                { $sort: { _id: 1 } },
+            ]),
+            Call.aggregate([
+                { $match: baseMatch },
+                { $group: { _id: "$callerId", count: { $sum: 1 } } },
+            ]),
+            Call.countDocuments({ ...baseMatch, status: "ended", createdAt: { $gte: startOfMonth } }),
+            Call.countDocuments({ ...baseMatch, status: "ended", createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } }),
+            // Time series: last 7 days (for weekly view)
+            Call.aggregate([
+                { $match: { ...baseMatch, createdAt: { $gte: startOfWeek } } },
+                {
+                    $group: {
+                        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+                        calls: { $sum: 1 },
+                        talkTimeSeconds: { $sum: { $cond: [{ $eq: ["$status", "ended"] }, "$durationSeconds", 0] } },
+                        answered: { $sum: { $cond: [{ $eq: ["$status", "ended"] }, 1, 0] } },
+                    },
+                },
+                { $sort: { _id: 1 } },
+            ]),
+            // Time series: last 30 days by day (for monthly view)
+            Call.aggregate([
+                { $match: { ...baseMatch, createdAt: { $gte: startOf30Days } } },
+                {
+                    $group: {
+                        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+                        calls: { $sum: 1 },
+                        talkTimeSeconds: { $sum: { $cond: [{ $eq: ["$status", "ended"] }, "$durationSeconds", 0] } },
+                        answered: { $sum: { $cond: [{ $eq: ["$status", "ended"] }, 1, 0] } },
+                    },
+                },
+                { $sort: { _id: 1 } },
+            ]),
+            // Time series: today by hour (for today view)
+            Call.aggregate([
+                { $match: { ...baseMatch, createdAt: { $gte: startOfToday } } },
+                {
+                    $group: {
+                        _id: { $hour: "$createdAt" },
+                        calls: { $sum: 1 },
+                        talkTimeSeconds: { $sum: { $cond: [{ $eq: ["$status", "ended"] }, "$durationSeconds", 0] } },
+                        answered: { $sum: { $cond: [{ $eq: ["$status", "ended"] }, 1, 0] } },
+                    },
+                },
+                { $sort: { _id: 1 } },
+            ]),
+            // Callers: who called this employee, with totals (for “who talked longest” etc.)
+            Call.aggregate([
+                { $match: { ...baseMatch, status: "ended" } },
+                {
+                    $group: {
+                        _id: "$callerId",
+                        callCount: { $sum: 1 },
+                        totalDurationSeconds: { $sum: "$durationSeconds" },
+                        totalTokensSpent: { $sum: "$tokensSpent" },
+                        firstCallAt: { $min: "$createdAt" },
+                        lastCallAt: { $max: "$createdAt" },
+                    },
+                },
+                { $sort: { totalDurationSeconds: -1 } },
+                { $limit: 100 },
+            ]),
+        ]);
+
+        const totalTalkTimeAll = endedCalls.reduce((s, c) => s + (c.durationSeconds || 0), 0);
+        const totalTalkTimeWeekly = weeklyAgg[0]?.total ?? 0;
+        const totalTalkTimeMonthly = monthlyAgg[0]?.total ?? 0;
+        const totalCallsReceived = allCalls.length;
+        const answered = endedCalls.length;
+
+        const rangeTalkTime = rangeEndedCalls.reduce((s, c) => s + (c.durationSeconds || 0), 0);
+        const rangeCallsCount = rangeCalls.length;
+        const rangeAnswered = rangeEndedCalls.length;
+        const rangeLongest =
+            rangeEndedCalls.length > 0
+                ? Math.max(...rangeEndedCalls.map((c) => c.durationSeconds || 0))
+                : 0;
+        const rangeAvgDuration =
+            rangeEndedCalls.length > 0 ? rangeTalkTime / rangeEndedCalls.length : 0;
+        const rangeTokens = rangeCalls.reduce((s, c) => s + (c.tokensSpent || 0), 0);
+        const rangeCallerIdCounts = (rangeCalls as { callerId: string }[]).reduce(
+            (acc: Record<string, number>, c) => {
+                acc[c.callerId] = (acc[c.callerId] || 0) + 1;
+                return acc;
+            },
+            {}
+        );
+        const rangeUniqueCallersCount = Object.keys(rangeCallerIdCounts).length;
+        const rangeRepeatCallersCount = Object.values(rangeCallerIdCounts).filter((n) => n > 1).length;
+
+        const statusMap: Record<string, number> = {};
+        statusBreakdown.forEach((r: { _id: string; count: number }) => {
+            statusMap[r._id] = r.count;
+        });
+        const missed = statusMap.missed ?? 0;
+        const rejected = statusMap.rejected ?? 0;
+        const typeMap: Record<string, number> = {};
+        typeBreakdown.forEach((r: { _id: string; count: number }) => {
+            typeMap[r._id] = r.count;
+        });
+        const voiceCalls = typeMap.voice ?? 0;
+        const videoCalls = typeMap.video ?? 0;
+        const totalTokensEarned = allCalls.reduce((s, c) => s + (c.tokensSpent || 0), 0);
+        const uniqueCallers = callerCounts.length;
+        const repeatCallers = callerCounts.filter((c: { count: number }) => c.count > 1).length;
+        const longestCall = endedCalls.length
+            ? Math.max(...endedCalls.map((c) => c.durationSeconds || 0))
+            : 0;
+        const avgDuration =
+            endedCalls.length > 0 ? totalTalkTimeAll / endedCalls.length : 0;
+        const answerRate = totalCallsReceived > 0 ? (answered / totalCallsReceived) * 100 : 0;
+        const rangeAnswerRate = rangeCallsCount > 0 ? (rangeAnswered / rangeCallsCount) * 100 : 0;
+        const lastMonthAnswered = lastMonthCalls;
+        const momGrowth =
+            lastMonthAnswered > 0
+                ? ((thisMonthCalls - lastMonthAnswered) / lastMonthAnswered) * 100
+                : (thisMonthCalls > 0 ? 100 : 0);
+
+        const hourLabels = Array.from({ length: 24 }, (_, i) => i);
+        const byHourMap: Record<number, number> = {};
+        byHour.forEach((r: { _id: number; count: number }) => {
+            byHourMap[r._id] = r.count;
+        });
+        const busiestHours = hourLabels.map((h) => ({ hour: h, count: byHourMap[h] ?? 0 }));
+
+        const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const byDayMap: Record<number, number> = {};
+        byDay.forEach((r: { _id: number; count: number }) => {
+            byDayMap[r._id] = r.count;
+        });
+        const busiestDays = [1, 2, 3, 4, 5, 6, 7].map((d) => ({
+            day: dayNames[d - 1] ?? String(d),
+            count: byDayMap[d] ?? 0,
+        }));
+
+        const peakHour =
+            busiestHours.length > 0
+                ? busiestHours.reduce((a, b) => (a.count >= b.count ? a : b), busiestHours[0])
+                : { hour: 0, count: 0 };
+        const peakDay =
+            busiestDays.length > 0
+                ? busiestDays.reduce((a, b) => (a.count >= b.count ? a : b), busiestDays[0])
+                : { day: "—", count: 0 };
+
+        // Fill gaps in time series for weekly (7 days) and monthly (30 days)
+        const fillTimeSeries = (
+            points: { _id: string; calls: number; talkTimeSeconds: number; answered?: number }[],
+            days: number
+        ) => {
+            const map = new Map(points.map((p) => [p._id, { date: p._id, calls: p.calls, talkTimeSeconds: p.talkTimeSeconds, answered: p.answered ?? 0 }]));
+            const result: { date: string; calls: number; talkTimeSeconds: number; answered: number }[] = [];
+            for (let i = days - 1; i >= 0; i--) {
+                const d = new Date(now);
+                d.setDate(d.getDate() - i);
+                const key = d.toISOString().slice(0, 10);
+                result.push({
+                    date: key,
+                    calls: map.get(key)?.calls ?? 0,
+                    talkTimeSeconds: map.get(key)?.talkTimeSeconds ?? 0,
+                    answered: map.get(key)?.answered ?? 0,
+                });
+            }
+            return result;
+        };
+        const timeSeries7 = fillTimeSeries(timeSeriesWeekly, 7);
+        const timeSeries30 = fillTimeSeries(timeSeriesMonthly, 30);
+        const hourMapToday: Record<number, { calls: number; talkTimeSeconds: number; answered: number }> = {};
+        (timeSeriesTodayByHour as { _id: number; calls: number; talkTimeSeconds: number; answered: number }[]).forEach((p) => {
+            hourMapToday[p._id] = { calls: p.calls, talkTimeSeconds: p.talkTimeSeconds, answered: p.answered ?? 0 };
+        });
+        const timeSeriesToday = Array.from({ length: 24 }, (_, h) => ({
+            date: `${h}:00`,
+            label: `${h}:00`,
+            calls: hourMapToday[h]?.calls ?? 0,
+            talkTimeSeconds: hourMapToday[h]?.talkTimeSeconds ?? 0,
+            answered: hourMapToday[h]?.answered ?? 0,
+        }));
+
+        const callerIds = callersAgg.map((c: { _id: string }) => c._id);
+        const callerUsers = await User.find({ user_id: { $in: callerIds } })
+            .select("user_id displayName photoURL email")
+            .lean();
+        const callerUserMap = new Map(callerUsers.map((u: { user_id: string }) => [u.user_id, u]));
+
+        const callers = callersAgg.map(
+            (c: {
+                _id: string;
+                callCount: number;
+                totalDurationSeconds: number;
+                totalTokensSpent: number;
+                firstCallAt: Date;
+                lastCallAt: Date;
+            }) => {
+                const first = new Date(c.firstCallAt);
+                return {
+                    callerId: c._id,
+                    displayName: (callerUserMap.get(c._id) as { displayName?: string })?.displayName,
+                    photoURL: (callerUserMap.get(c._id) as { photoURL?: string })?.photoURL,
+                    email: (callerUserMap.get(c._id) as { email?: string })?.email,
+                    callCount: c.callCount,
+                    totalDurationSeconds: c.totalDurationSeconds,
+                    totalTokensSpent: c.totalTokensSpent,
+                    firstCallAt: c.firstCallAt,
+                    lastCallAt: c.lastCallAt,
+                    isNewCaller: first >= newCallerThreshold,
+                };
+            }
+        );
+
+        res.json({
+            success: true,
+            data: {
+                range: validRange,
+                employee: {
+                    user_id: user.user_id,
+                    email: user.email,
+                    displayName: user.displayName,
+                    photoURL: user.photoURL,
+                    profile: user.profile,
+                },
+                callActivity: {
+                    totalTalkTimeSeconds: totalTalkTimeAll,
+                    totalTalkTimeWeeklySeconds: totalTalkTimeWeekly,
+                    totalTalkTimeMonthlySeconds: totalTalkTimeMonthly,
+                    longestCallSeconds: longestCall,
+                    averageCallDurationSeconds: Math.round(avgDuration),
+                    totalCallsReceived,
+                    answered,
+                    missed,
+                    rejected,
+                    voiceCalls,
+                    videoCalls,
+                    busiestHours,
+                    busiestDays,
+                    peakCallTimeWindow: {
+                        hour: peakHour.hour,
+                        hourLabel: `${peakHour.hour}:00`,
+                        count: peakHour.count,
+                    },
+                    peakDay: peakDay.day,
+                    peakDayCount: peakDay.count,
+                    rangeTalkTimeSeconds: rangeTalkTime,
+                    rangeCallsCount,
+                    rangeAnswered,
+                    rangeLongestCallSeconds: rangeLongest,
+                    rangeAverageCallDurationSeconds: Math.round(rangeAvgDuration),
+                    rangeAnswerRatePercent: Math.round(rangeAnswerRate * 10) / 10,
+                    rangeTokensEarned: rangeTokens,
+                },
+                timeSeries: validRange === "today" ? timeSeriesToday : validRange === "weekly" ? timeSeries7 : validRange === "monthly" ? timeSeries30 : timeSeries30,
+                earningsAndCallers: {
+                    totalTokensEarned: totalTokensEarned,
+                    totalRevenueGenerated: totalTokensEarned,
+                    uniqueCallersCount: uniqueCallers,
+                    repeatCallersCount: repeatCallers,
+                    rangeTokensEarned: rangeTokens,
+                    rangeUniqueCallersCount,
+                    rangeRepeatCallersCount,
+                },
+                performanceInsights: {
+                    callAnswerRatePercent: Math.round(answerRate * 10) / 10,
+                    monthOverMonthGrowthPercent: Math.round(momGrowth * 10) / 10,
+                    thisMonthAnsweredCalls: thisMonthCalls,
+                    lastMonthAnsweredCalls: lastMonthAnswered,
+                },
+                callers,
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Failed to fetch employee analytics" });
     }
 };

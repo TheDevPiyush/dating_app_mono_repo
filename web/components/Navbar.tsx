@@ -2,15 +2,30 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu } from "lucide-react";
+import { Menu, ShieldCheck, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react";
+import { callBackend } from "@/lib/api";
 
 interface NavbarProps {
   onMenuClick: () => void;
 }
+
+interface NavLinkItem {
+  href: string;
+  label: string;
+  icon?: LucideIcon;
+  matchPrefix?: boolean; // match pathname.startsWith(href) instead of exact
+}
+
+const NAV_LINKS: NavLinkItem[] = [
+  { href: "/privacy-policy", label: "Privacy Policy" },
+  { href: "/about-us", label: "About Us" },
+  { href: "/blogs", label: "Blogs" },
+  { href: "/support", label: "Support" },
+];
 
 export default function Navbar({ onMenuClick }: NavbarProps) {
   const pathname = usePathname();
@@ -18,10 +33,27 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
   const session = useSession();
   const supabase = useSupabaseClient();
   const [hidden, setHidden] = useState(true);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const lastYRef = useRef(0);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const autoHideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isHoveringRef = useRef(false);
+
+  useEffect(() => {
+    if (!session) {
+      setIsAdmin(false);
+      return;
+    }
+    let cancelled = false;
+    callBackend<{ isAdmin?: boolean }>(supabase, "/api/v1/user/me", { method: "GET" })
+      .then((res) => {
+        if (!cancelled) setIsAdmin(!!res.data?.isAdmin);
+      })
+      .catch(() => {
+        if (!cancelled) setIsAdmin(false);
+      });
+    return () => { cancelled = true; };
+  }, [session, supabase]);
 
   const startAutoHideTimer = () => {
     // Clear existing auto-hide timer
@@ -132,9 +164,9 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
               variant="ghost"
               size="icon"
               onClick={onMenuClick}
-              className="md:hidden"
+              className="md:hidden text-[#2A1F2D] hover:text-[#E94057]"
             >
-              <Menu className="h-5 w-5 text-white" />
+              <Menu className="h-5 w-5" />
             </Button>
             <Link href="/" className="flex items-center gap-2">
               <div className="w-8 h-8 bg-linear-to-br from-[#E94057] to-[#FF7EB3] rounded-lg flex items-center justify-center">
@@ -143,7 +175,6 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
                   alt="Pookiey Logo"
                   height={50}
                   width={50}
-                  
                 />
               </div>
               <span className="text-xl font-bold text-[#E94057] hidden sm:inline-block">Pookiey</span>
@@ -152,47 +183,37 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
-            
-            <Link
-              href="/privacy-policy"
-              className={`text-sm  transition-colors font-bold ${
-                pathname === "/privacy-policy"
-                  ? "text-[#E94057]"
-                  : "text-white hover:text-[#E94057]"
-              }`}
-            >
-              Privacy Policy
-            </Link>
-            <Link
-              href="/about-us"
-              className={`text-sm  transition-colors font-bold ${
-                pathname === "/about-us"
-                  ? "text-[#E94057]"
-                  : "text-white hover:text-[#E94057]"
-              }`}
-            >
-              About Us
-            </Link>
-            <Link
-              href="/blogs"
-              className={`text-sm  transition-colors font-bold ${
-                pathname === "/blogs"
-                  ? "text-[#E94057]"
-                  : "text-white hover:text-[#E94057]"
-              }`}
-            >
-              Blogs
-            </Link>
-            <Link
-              href="/support"
-              className={`text-sm  transition-colors font-bold ${
-                pathname === "/support"
-                  ? "text-[#E94057]"
-                  : "text-white hover:text-[#E94057]"
-              }`}
-            >
-              Support
-            </Link>
+            {NAV_LINKS.map((item) => {
+              const isActive = item.matchPrefix
+                ? pathname?.startsWith(item.href)
+                : pathname === item.href;
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`text-sm transition-colors font-bold flex items-center gap-1.5 ${
+                    isActive ? "text-[#E94057]" : "text-[#2A1F2f] hover:text-[#E94057]"
+                  }`}
+                >
+                  {Icon && <Icon className="h-4 w-4" />}
+                  {item.label}
+                </Link>
+              );
+            })}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className={`text-sm transition-colors font-bold flex items-center gap-1.5 ${
+                  pathname?.startsWith("/admin")
+                    ? "text-[#E94057]"
+                    : "text-[#2A1F2D] hover:text-[#E94057]"
+                }`}
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Admin
+              </Link>
+            )}
             {session ? (
               <button
                 onClick={handleLogout}

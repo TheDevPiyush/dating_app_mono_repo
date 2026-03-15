@@ -863,7 +863,7 @@ export default function UserDetailPage() {
           onClick={() => !updatingStatus && setShowStatusModal(false)}
         >
           <div
-            className="glass-card rounded-3xl p-6 md:p-8 max-w-md w-full"
+            className="glass-card bg-white/10 backdrop-blur-sm rounded-3xl p-6 md:p-8 max-w-md w-full"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-xl md:text-2xl font-bold text-[#2A1F2D] mb-4">

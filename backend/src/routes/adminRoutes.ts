@@ -32,4 +32,8 @@ router.patch("/users/:userId/moderate", adminControllers.moderateUser);
 router.get("/support", adminControllers.getSupportMessages);
 router.patch("/support/:supportId", adminControllers.updateSupportStatus);
 
+// Women employees (@pookiey.com + female)
+router.get("/women-employees", adminControllers.getWomenEmployees);
+router.get("/women-employees/:userId/analytics", adminControllers.getWomenEmployeeAnalytics);
+
 export default router;

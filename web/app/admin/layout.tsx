@@ -10,6 +10,7 @@ import { callBackend } from "../../lib/api";
 const adminNavItems = [
   { href: "/admin", label: "Dashboard", icon: "📊" },
   { href: "/admin/users", label: "Users", icon: "👥" },
+  { href: "/admin/women-employees", label: "Women Employees", icon: "👩‍💼" },
   { href: "/admin/interactions", label: "Interactions", icon: "💬" },
   { href: "/admin/locations", label: "Locations", icon: "📍" },
   { href: "/admin/payments", label: "Payments", icon: "💰" },
