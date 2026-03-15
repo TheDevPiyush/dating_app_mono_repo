@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+    InteractionManager,
     StyleSheet,
     View
 } from 'react-native';
@@ -131,11 +132,22 @@ export default function LocationScreen() {
             if (fromHome) {
                 router.replace('/(home)/(tabs)');
             } else {
-                // Check for pending deeplink after onboarding
                 const pendingDeeplink = deepLinkState.getPendingDeeplink();
                 if (pendingDeeplink) {
                     deepLinkState.clearPendingDeeplink();
-                    router.replace(pendingDeeplink as any);
+                    let initialRoute = '/(home)/(tabs)';
+                    if (typeof pendingDeeplink === 'object' && pendingDeeplink.pathname) {
+                        const parent = pendingDeeplink.pathname.substring(
+                            0, pendingDeeplink.pathname.lastIndexOf('/'),
+                        );
+                        if (parent) initialRoute = parent;
+                    }
+                    router.replace(initialRoute);
+                    InteractionManager.runAfterInteractions(() => {
+                        setTimeout(() => {
+                            router.push(pendingDeeplink as any);
+                        }, 800);
+                    });
                 } else {
                     router.replace('/(home)/(tabs)');
                 }

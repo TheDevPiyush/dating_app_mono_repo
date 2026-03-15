@@ -24,6 +24,16 @@ import { useAuth } from '@/hooks/useAuth'
 import CircularLoader from '@/components/CircularLoader'
 import { supabase } from '@/config/supabaseConfig'
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: false,
+    shouldPlaySound: false,
+    shouldSetBadge: true,
+    shouldShowBanner: false,
+    shouldShowList: true,
+  }),
+})
+
 export default function index() {
   const { t } = useTranslation();
   const router = useRouter()
@@ -54,139 +64,69 @@ export default function index() {
   const { setCategorizedStories, setLoading: setStoryLoading } = useStoryStore()
   const { dbUser, setDBUser, addNotificationToken, getNotificationTokens } = useAuthStore()
 
-  // const getToken = async () => {
-  //   const { data } = await supabase.auth.getSession()
-  //   console.log(data.session?.access_token)
-  // };
-  // useEffect(() => {
-  //   // console.log("hello")
-  //   getToken();
-  // }, [profiles])
+  // Stable refs to avoid recreating callbacks when reactive values change
+  const idTokenRef = useRef(idToken)
+  idTokenRef.current = idToken
+  const dbUserRef = useRef(dbUser)
+  dbUserRef.current = dbUser
+  const updateUserRef = useRef(updateUser)
+  updateUserRef.current = updateUser
 
-  const updateLocationInApi = useCallback(
-    async (coords: { latitude: number; longitude: number }, city?: string) => {
-      if (!idToken) return
-
-      const signature = `${coords.latitude.toFixed(6)},${coords.longitude.toFixed(6)}|${city || ''}`
-      if (lastLocationSentRef.current === signature) return
-
-      try {
-        const response = await updateUser(idToken as string, {
-          profile: {
-            location: {
-              type: 'Point' as const,
-              coordinates: [coords.longitude, coords.latitude],
-              city,
-            },
-          },
-        })
-
-        if (response?.success && response?.data) {
-          setDBUser(response.data)
-        }
-
-        lastLocationSentRef.current = signature
-      } catch (e) {
-        console.info('Home: failed to update location in API:', e)
-      }
-    },
-    [idToken, setDBUser, updateUser],
-  )
-
-  const updateNotificationTokenInApi = useCallback(
-    async (pushToken: string) => {
-      if (!idToken) return
-      if (!pushToken) return
-      if (lastPushTokenSentRef.current === pushToken) return
-
-      try {
-        const localTokens = getNotificationTokens()
-        const dbTokens = Array.isArray(dbUser?.notificationTokens) ? dbUser!.notificationTokens : []
-        const merged = Array.from(new Set([...dbTokens, ...localTokens, pushToken]))
-
-        const response = await updateUser(idToken as string, { notificationTokens: merged })
-        if (response?.success && response?.data) {
-          setDBUser(response.data)
-        }
-
-        lastPushTokenSentRef.current = pushToken
-      } catch (e) {
-        console.info('Home: failed to update notification token in API:', e)
-      }
-    },
-    [dbUser, getNotificationTokens, idToken, setDBUser, updateUser],
-  )
-
-  const ensurePermissions = useCallback(async () => {
-    if (isCheckingPermissionsRef.current) return
-    isCheckingPermissionsRef.current = true
-    setPermissionError(null)
+  // Background location sync — fully independent, own error handling
+  const syncLocation = useCallback(async () => {
+    const currentIdToken = idTokenRef.current
+    if (!currentIdToken) return
 
     try {
-      // 1) Location permission + update location via API
-      const currentLocationPerm = await Location.getForegroundPermissionsAsync()
-      const locationStatus =
-        currentLocationPerm.status === 'granted'
-          ? currentLocationPerm.status
-          : (await Location.requestForegroundPermissionsAsync()).status
+      const { status } = await Location.getForegroundPermissionsAsync()
+      if (status !== 'granted') return
 
-      if (locationStatus !== 'granted') {
-        setPermissionsChecked(false)
-        setPermissionError('Location permission is required to continue. Please allow it.')
-        return
-      }
-
-      try {
-        const currentLocation = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        })
-
-        let city: string | undefined
-        try {
-          const reverse = await Location.reverseGeocodeAsync({
-            latitude: currentLocation.coords.latitude,
-            longitude: currentLocation.coords.longitude,
-          })
-          if (reverse?.length) {
-            const a = reverse[0]
-            const addressParts = [a.city, a.region, a.country].filter(Boolean)
-            city = addressParts.join(', ') || undefined
-          }
-        } catch (e) {
-        }
-
-        await updateLocationInApi(
-          {
-            latitude: currentLocation.coords.latitude,
-            longitude: currentLocation.coords.longitude,
-          },
-          city,
-        )
-      } catch (e) {
-      }
-
-      // 2) Notifications permission + update token via API
-      const currentNotifPerm = await Notifications.getPermissionsAsync()
-      const notifStatus =
-        currentNotifPerm.status === 'granted'
-          ? currentNotifPerm.status
-          : (await Notifications.requestPermissionsAsync()).status
-
-      if (notifStatus !== 'granted') {
-        setPermissionsChecked(false)
-        setPermissionError('Notification permission is required to continue. Please allow it.')
-        return
-      }
-
-      Notifications.setNotificationHandler({
-        handleNotification: async () => ({
-          shouldShowAlert: true,
-          shouldPlaySound: true,
-          shouldSetBadge: true,
-          shouldShowBanner: true,
-          shouldShowList: true,
-        }),
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
       })
+
+      let city: string | undefined
+      try {
+        const reverse = await Location.reverseGeocodeAsync({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        })
+        if (reverse?.length) {
+          const a = reverse[0]
+          city = [a.city, a.region, a.country].filter(Boolean).join(', ') || undefined
+        }
+      } catch {}
+
+      const sig = `${loc.coords.latitude.toFixed(6)},${loc.coords.longitude.toFixed(6)}|${city || ''}`
+      if (lastLocationSentRef.current === sig) return
+
+      const response = await updateUserRef.current(currentIdToken, {
+        profile: {
+          location: {
+            type: 'Point' as const,
+            coordinates: [loc.coords.longitude, loc.coords.latitude],
+            city,
+          },
+        },
+      })
+
+      if (response?.success && response?.data) {
+        setDBUser(response.data)
+      }
+      lastLocationSentRef.current = sig
+    } catch (e) {
+      console.info('Home: background location sync failed:', e)
+    }
+  }, [setDBUser])
+
+  // Background notification token sync — fully independent, own error handling
+  const syncNotificationToken = useCallback(async () => {
+    const currentIdToken = idTokenRef.current
+    if (!currentIdToken) return
+
+    try {
+      const { status } = await Notifications.getPermissionsAsync()
+      if (status !== 'granted') return
 
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('messages', {
@@ -200,58 +140,120 @@ export default function index() {
         })
       }
 
-      if (Device.isDevice) {
-        const pushToken = await Notifications.getExpoPushTokenAsync({
-          projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
-        })
-        if (pushToken?.data) {
-          addNotificationToken(pushToken.data)
-          await updateNotificationTokenInApi(pushToken.data)
-        }
-      } else {
-        console.warn('Home: must use physical device for push notifications token')
-      }
-
-      // 3) Microphone permission (no API call)
-      const currentMicPerm = await getRecordingPermissionsAsync()
-      const micStatus =
-        currentMicPerm.status === 'granted'
-          ? currentMicPerm.status
-          : (await requestRecordingPermissionsAsync()).status
-
-      if (micStatus !== 'granted') {
-        setPermissionsChecked(false)
-        setPermissionError('Microphone permission is required to continue. Please allow it.')
+      if (!Device.isDevice) {
+        console.warn('Home: must use physical device for push notifications')
         return
       }
 
+      const pushToken = await Notifications.getExpoPushTokenAsync({
+        projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
+      })
+
+      if (!pushToken?.data) return
+
+      console.log('Home: [DEBUG] Expo push token:', pushToken.data)
+
+      addNotificationToken(pushToken.data)
+
+      if (lastPushTokenSentRef.current === pushToken.data) return
+
+      const localTokens = getNotificationTokens()
+      const currentDbUser = dbUserRef.current
+      const dbTokens = Array.isArray(currentDbUser?.notificationTokens) ? currentDbUser!.notificationTokens : []
+      const merged = Array.from(new Set([...dbTokens, ...localTokens, pushToken.data]))
+
+      const response = await updateUserRef.current(currentIdToken, { notificationTokens: merged })
+      if (response?.success && response?.data) {
+        setDBUser(response.data)
+      }
+      lastPushTokenSentRef.current = pushToken.data
+    } catch (e) {
+      console.info('Home: background notification token sync failed:', e)
+    }
+  }, [addNotificationToken, getNotificationTokens, setDBUser])
+
+  // Permission check only — no network calls, no API sync, can never false-positive
+  const ensurePermissions = useCallback(async () => {
+    if (isCheckingPermissionsRef.current) return
+    isCheckingPermissionsRef.current = true
+    setPermissionError(null)
+
+    try {
+      // 1) Location
+      const locPerm = await Location.getForegroundPermissionsAsync()
+      if (locPerm.status !== 'granted') {
+        const { status } = await Location.requestForegroundPermissionsAsync()
+        if (status !== 'granted') {
+          setPermissionsChecked(false)
+          setPermissionError('Location permission is required to continue. Please allow it.')
+          return
+        }
+      }
+
+      // 2) Notifications
+      const notifPerm = await Notifications.getPermissionsAsync()
+      if (notifPerm.status !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync()
+        if (status !== 'granted') {
+          setPermissionsChecked(false)
+          setPermissionError('Notification permission is required to continue. Please allow it.')
+          return
+        }
+      }
+
+      // 3) Microphone
+      const micPerm = await getRecordingPermissionsAsync()
+      if (micPerm.status !== 'granted') {
+        const { status } = await requestRecordingPermissionsAsync()
+        if (status !== 'granted') {
+          setPermissionsChecked(false)
+          setPermissionError('Microphone permission is required to continue. Please allow it.')
+          return
+        }
+      }
+
       setPermissionsChecked(true)
-      setPermissionError(null) // Clear any previous errors
-      // Reset dismissed flag when permissions are successfully granted
+      setPermissionError(null)
       userDismissedAlertRef.current = false
       lastPermissionStateRef.current = 'granted'
     } catch (error) {
-      // console.error('Home: error ensuring permissions:', error)
+      console.error('Home: error checking permissions:', error)
       setPermissionError('Could not request permissions. Please try again.')
       setPermissionsChecked(false)
     } finally {
       isCheckingPermissionsRef.current = false
     }
-  }, [addNotificationToken, updateLocationInApi, updateNotificationTokenInApi])
+  }, [])
 
-  // Ask permissions directly (no routing)
+  // On mount: check permissions, then kick off background sync
   useEffect(() => {
-    ensurePermissions()
-  }, [ensurePermissions])
+    let cancelled = false
+    const init = async () => {
+      await ensurePermissions()
+      if (cancelled) return
+      syncLocation()
+      syncNotificationToken()
+    }
+    init()
+    return () => { cancelled = true }
+  }, [ensurePermissions, syncLocation, syncNotificationToken])
 
-  // Show a quick dialog if permissions are missing, but DO NOT block the swipe deck UI.
+  // On each tab focus: always re-sync location & token; re-check permissions if revoked
+  useFocusEffect(
+    useCallback(() => {
+      syncLocation()
+      syncNotificationToken()
+      if (!permissionsChecked && !isCheckingPermissionsRef.current) {
+        ensurePermissions()
+      }
+    }, [syncLocation, syncNotificationToken, ensurePermissions, permissionsChecked])
+  )
+
+  // Show permission dialog when needed (does NOT depend on ensurePermissions ref)
   useEffect(() => {
-    // Don't show alert if user dismissed it with "Not now"
     if (userDismissedAlertRef.current) return
 
-    // Only show alert if there's an actual permission error (not just initial loading state)
     if (!permissionError) {
-      // If permissions are checked and granted, reset the dismissed flag for next time
       if (permissionsChecked) {
         userDismissedAlertRef.current = false
         lastPermissionStateRef.current = 'granted'
@@ -259,7 +261,6 @@ export default function index() {
       return
     }
 
-    // Avoid spamming the same dialog repeatedly
     const currentState = permissionError
     if (permissionDialogShownRef.current === currentState || lastPermissionStateRef.current === currentState) {
       return
@@ -268,13 +269,12 @@ export default function index() {
     permissionDialogShownRef.current = currentState
     lastPermissionStateRef.current = currentState
 
-    // Delay slightly so we don't show a dialog during initial render/layout
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       setPermissionDialogVisible(true)
     }, 250)
 
-    return () => clearTimeout(t)
-  }, [permissionError, permissionsChecked, ensurePermissions])
+    return () => clearTimeout(timer)
+  }, [permissionError, permissionsChecked])
 
   // Load stories when component mounts
   const loadStories = useCallback(async () => {
@@ -466,14 +466,6 @@ export default function index() {
     }, [idToken, profiles.length])
   )
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!permissionsChecked && !isCheckingPermissionsRef.current) {
-        ensurePermissions()
-      }
-    }, [ensurePermissions, permissionsChecked])
-  )
-
   // Track when this tab first gained focus (helps avoid New Arch pause/resume loop when opening modals too soon)
   const tabFocusedAtRef = useRef<number | null>(null)
 
@@ -648,7 +640,7 @@ export default function index() {
 
           <ThemedText type='title' style={{ color: Colors.primaryBackgroundColor }}>{t('home.discover')}</ThemedText>
 
-          <TouchableOpacity onPress={()=>{router.push("/subscriptionScreen")}}>
+          <TouchableOpacity onPress={handleRefreshProfiles}>
             <Ionicons name="refresh-outline" size={24} color={Colors.primary.red} />
           </TouchableOpacity>
         </View>

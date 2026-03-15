@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { Story, IStory } from "../models/Story";
 import { User } from "../models/User";
 import { Matches } from "../models/Matches";
+import { sendStoryLikeNotification } from "../services/notificationService";
 
 // Helper function to format story user data
 const formatStoryUser = async (userId: string, currentUserId: string, userStories: IStory[]) => {
@@ -67,7 +68,7 @@ export const getStories = async (req: Request, res: Response) => {
             ]
         });
 
-        const matchedUserIds = matches.map(match => 
+        const matchedUserIds = matches.map(match =>
             match.user1Id === currentUserId ? match.user2Id : match.user1Id
         );
 
@@ -109,7 +110,7 @@ export const getStories = async (req: Request, res: Response) => {
         if (discoverUserIds.length > 0 && (longitude !== undefined && latitude !== undefined)) {
             // Filter discover users by preferences using aggregation
             const userLocation: [number, number] = [longitude, latitude];
-            
+
             const pipeline: any[] = [
                 {
                     $geoNear: {
@@ -293,16 +294,16 @@ export const createStory = async (req: Request, res: Response) => {
         const { type, mediaUrl } = req.body;
 
         if (!type || !["image", "video"].includes(type)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: "Invalid story type. Must be 'image' or 'video'" 
+            return res.status(400).json({
+                success: false,
+                message: "Invalid story type. Must be 'image' or 'video'"
             });
         }
 
         if (!mediaUrl) {
-            return res.status(400).json({ 
-                success: false, 
-                message: "Media URL is required" 
+            return res.status(400).json({
+                success: false,
+                message: "Media URL is required"
             });
         }
 
@@ -385,6 +386,9 @@ export const likeStory = async (req: Request, res: Response) => {
             story.likes = story.likes.filter((userId: string) => userId !== currentUserId);
         } else {
             // Like: add to likes array if not already there
+
+            //notification send
+
             if (!story.likes) {
                 story.likes = [];
             }
@@ -394,6 +398,32 @@ export const likeStory = async (req: Request, res: Response) => {
         }
 
         await story.save();
+
+        if (!isLiked && story.userId !== currentUserId) {
+            try {
+                const [liker, storyOwner] = await Promise.all([
+                    User.findOne({ user_id: currentUserId }).select("displayName profile"),
+                    User.findOne({ user_id: story.userId }).select("notificationTokens"),
+                ]);
+
+                const likerName =
+                    liker?.displayName ||
+                    `${liker?.profile?.firstName || ""} ${liker?.profile?.lastName || ""}`.trim() ||
+                    "Someone";
+
+                const tokens = storyOwner?.notificationTokens?.filter(Boolean) || [];
+
+                if (tokens.length) {
+                    await sendStoryLikeNotification({
+                        likerName,
+                        storyOwnerId: story.userId,
+                        expo_tokens: tokens,
+                    });
+                }
+            } catch (notifErr) {
+                console.warn("Story like notification failed:", notifErr);
+            }
+        }
 
         res.json({
             success: true,

@@ -1,5 +1,6 @@
 import { Stack } from "expo-router";
 import { CallProvider } from "@/context/CallContext";
+import PromoPopup from "@/components/PromoPopup";
 
 export default function _layout() {
     return (
@@ -17,6 +18,7 @@ export default function _layout() {
                 <Stack.Screen name="rechargeScreen"
                     options={{ presentation: 'modal', headerShown: true, headerTitle: 'Recharge Minutes' }} />
             </Stack>
+            <PromoPopup />
         </CallProvider>
     )
 }

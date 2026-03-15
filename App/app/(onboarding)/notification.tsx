@@ -37,10 +37,10 @@ export default function NotificationScreen() {
 
                 Notifications.setNotificationHandler({
                     handleNotification: async () => ({
-                        shouldShowAlert: true,
-                        shouldPlaySound: true,
+                        shouldShowAlert: false,
+                        shouldPlaySound: false,
                         shouldSetBadge: true,
-                        shouldShowBanner: true,
+                        shouldShowBanner: false,
                         shouldShowList: true,
                     }),
                 });

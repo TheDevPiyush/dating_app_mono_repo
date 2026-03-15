@@ -6,6 +6,7 @@ import {
   RefreshControl,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { ChatListItem } from '@/components/ChatListItem';
 import { InboxItem } from '@/hooks/useSocket';
@@ -69,7 +70,7 @@ export default function ChatsScreen() {
         alignItems: 'center',
         backgroundColor: Colors.parentBackgroundColor
       }}>
-        <CustomLoader messages={['Fetching chats...']} />
+        <ActivityIndicator size="large" color={Colors.primaryBackgroundColor} />
       </SafeAreaView>
     );
   }

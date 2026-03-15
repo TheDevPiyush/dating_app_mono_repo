@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { InteractionManager } from 'react-native';
 import { supabase } from '../config/supabaseConfig';
 import { useUser } from '../hooks/useUser';
 import type { SupabaseUser, DBUser } from '../types';
@@ -209,21 +210,33 @@ export const useAuthStore = create<AuthStore>()(
 
           const pendingDeeplink = deepLinkState.getPendingDeeplink();
 
-          // Determine the target route
-          let targetRoute: string;
+          if (dbUser?.profile?.isOnboarded && pendingDeeplink) {
+            deepLinkState.clearPendingDeeplink();
 
-          if (dbUser?.profile?.isOnboarded) {
-            // User is onboarded - check for deeplink or go to home
-            if (pendingDeeplink) {
-              targetRoute = pendingDeeplink;
-              deepLinkState.clearPendingDeeplink();
-            } else {
-              targetRoute = '/(home)/(tabs)';
+            // For object routes (e.g. chatRoom with params), navigate to the
+            // parent tab first so the stack base screen (e.g. chat list) mounts
+            // before we push the target screen on top.
+            let initialRoute = '/(home)/(tabs)';
+            if (typeof pendingDeeplink === 'object' && pendingDeeplink.pathname) {
+              const parent = pendingDeeplink.pathname.substring(
+                0, pendingDeeplink.pathname.lastIndexOf('/'),
+              );
+              if (parent) initialRoute = parent;
             }
-          } else {
-            // User is not onboarded - must go through onboarding first
-            targetRoute = '/(onboarding)/profile';
+
+            router.replace(initialRoute as any);
+            await get().hideSplashScreen();
+            InteractionManager.runAfterInteractions(() => {
+              setTimeout(() => {
+                router.push(pendingDeeplink as any);
+              }, 800);
+            });
+            return;
           }
+
+          const targetRoute = dbUser?.profile?.isOnboarded
+            ? '/(home)/(tabs)'
+            : '/(onboarding)/profile';
 
           router.replace(targetRoute as any);
           await get().hideSplashScreen();

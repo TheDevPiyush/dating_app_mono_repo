@@ -70,6 +70,10 @@ const handleReferralLink = (queryParams: Record<string, any>): boolean => {
 -------------------------------------------------------- */
 export const useDeepLinking = () => {
   useEffect(() => {
+    // Track handled notification identifiers to avoid double-processing
+    // between the listener and the cold-start check
+    const handledNotificationIds = new Set<string>();
+
     /* ---------------------
        🔗 HANDLE ANY URL
     ---------------------- */
@@ -119,12 +123,82 @@ export const useDeepLinking = () => {
         if (isAuthenticated && dbUser?.profile?.isOnboarded) {
           router.push(targetRoute as any);
           deepLinkState.clearPendingDeeplink();
-        } else if (isAuthenticated && !dbUser?.profile?.isOnboarded) {
-          deepLinkState.setPendingDeeplink(targetRoute);
         } else {
           deepLinkState.setPendingDeeplink(targetRoute);
         }
       }
+    };
+
+    /* --------------------------------------------------
+       🔔 Build the route from notification response data
+    --------------------------------------------------- */
+    const extractNotificationRoute = (
+      data: Record<string, unknown>,
+    ): { pathname: string; params: Record<string, string> } | string | null => {
+      if (data.type === 'message' && data.matchId) {
+        return {
+          pathname: '/(home)/(tabs)/(chats)/chatRoom',
+          params: {
+            matchId: (data.matchId as string),
+            userName: (data.userName as string) || '',
+            userAvatar: (data.userAvatar as string) || '',
+            userId: (data.userId as string) || '',
+          },
+        };
+      }
+
+      if (data.deepLink) return data.deepLink as string;
+
+      if (data.route) {
+        const r = data.route as string;
+        return r.startsWith('/') ? r : '/' + r;
+      }
+
+      return null;
+    };
+
+    /* --------------------------------------------------
+       🔔 Handle notification tap (foreground/background)
+       Navigates immediately since the app is mounted
+    --------------------------------------------------- */
+    const handleLiveNotificationResponse = (
+      response: Notifications.NotificationResponse,
+    ) => {
+      const notifId = response.notification.request.identifier;
+      if (handledNotificationIds.has(notifId)) return;
+      handledNotificationIds.add(notifId);
+
+      const data = response.notification.request.content.data;
+      if (!data) return;
+
+      const route = extractNotificationRoute(data);
+      if (!route) return;
+
+      if (typeof route === 'string') {
+        handleDeepLink({ url: route.includes('://') ? route : `pookiey://app${route}` });
+      } else {
+        router.push(route as any);
+      }
+    };
+
+    /* --------------------------------------------------
+       🧊 Handle notification that launched a killed app
+       Always stores as pending — the auth flow navigates
+    --------------------------------------------------- */
+    const handleColdStartNotification = (
+      response: Notifications.NotificationResponse,
+    ) => {
+      const notifId = response.notification.request.identifier;
+      if (handledNotificationIds.has(notifId)) return;
+      handledNotificationIds.add(notifId);
+
+      const data = response.notification.request.content.data;
+      if (!data) return;
+
+      const route = extractNotificationRoute(data);
+      if (!route) return;
+
+      deepLinkState.setPendingDeeplink(route);
     };
 
     /* ------------------------------------------
@@ -133,30 +207,32 @@ export const useDeepLinking = () => {
     const linkSubscription = Linking.addEventListener('url', handleDeepLink);
 
     /* ------------------------------------------
-       🔔 LISTEN FOR NOTIFICATION CLICKS
+       🔔 Live listener for notification taps
+       (works when app is in foreground/background)
     ------------------------------------------- */
     const notifSubscription = Notifications.addNotificationResponseReceivedListener(
-      response => {
-        const data = response.notification.request.content.data;
-
-        if (data?.deepLink) {
-          handleDeepLink({ url: data.deepLink as string });
-        }
-
-        if (data?.route) {
-          let route = (data.route as string).startsWith('/') ? data.route : '/' + data.route;
-          handleDeepLink({ url: `pookiey://app${route}` });
-        }
-      }
+      handleLiveNotificationResponse,
     );
 
     /* ------------------------------------------
-       🚀 Check if app was opened via a link
+       🚀 Cold start: check if app was opened
+       via a URL deep link
     ------------------------------------------- */
     Linking.getInitialURL().then((url) => {
       if (url) {
         deepLinkState.setLastHandledUrl?.(url);
         handleDeepLink({ url });
+      }
+    });
+
+    /* ------------------------------------------
+       🧊 Cold start: check if app was launched
+       by tapping a notification (killed state).
+       Always deferred — auth flow handles routing.
+    ------------------------------------------- */
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) {
+        handleColdStartNotification(response);
       }
     });
 

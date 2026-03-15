@@ -19,7 +19,7 @@ export default function SubscriptionScreenSettings() {
     const webviewSource = useMemo(() => {
         if (!userToken) return null;
         return {
-            uri: `https://app.thedevpiyush.com/pay/?user-token-for-payment=${userToken}`
+            uri: `${process.env.EXPO_PUBLIC_WEB_FRONTEND_URL}/pay/?user-token-for-payment=${userToken}`
         };
     }, [userToken]);
 

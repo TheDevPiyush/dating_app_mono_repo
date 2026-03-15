@@ -1,8 +1,13 @@
 // Simple state manager for deep link processing without hooks
 let isProcessing = false;
-let pendingDeeplink: string | null = null;
+let pendingDeeplink: PendingDeeplink = null;
 let lastHandledUrl: string | null = null;
 let listeners: Array<(value: boolean) => void> = [];
+
+export type PendingDeeplink =
+  | string
+  | { pathname: string; params: Record<string, string> }
+  | null;
 
 export const deepLinkState = {
   setProcessing: (value: boolean) => {
@@ -19,11 +24,11 @@ export const deepLinkState = {
     };
   },
 
-  setPendingDeeplink: (url: string | null) => {
-    pendingDeeplink = url;
+  setPendingDeeplink: (value: PendingDeeplink) => {
+    pendingDeeplink = value;
   },
 
-  getPendingDeeplink: () => pendingDeeplink,
+  getPendingDeeplink: (): PendingDeeplink => pendingDeeplink,
 
   clearPendingDeeplink: () => {
     pendingDeeplink = null;

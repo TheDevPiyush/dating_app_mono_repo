@@ -1,3 +1,52 @@
+/* -------------------------------------------------------
+   Generic Expo push sender — used by all notification helpers
+-------------------------------------------------------- */
+interface PushPayload {
+  expo_tokens: string[];
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+  sound?: string;
+  channelId?: string;
+}
+
+export async function sendPushNotification({
+  expo_tokens,
+  title,
+  body,
+  data = {},
+  sound = 'default',
+  channelId = 'messages',
+}: PushPayload) {
+  if (!expo_tokens?.length) return;
+
+  const messages = expo_tokens.map((token) => ({
+    to: token,
+    sound,
+    title,
+    body,
+    channelId,
+    data,
+  }));
+
+  const response = await fetch('https://exp.host/--/api/v2/push/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(messages),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result?.errors?.[0]?.message || 'Expo push error');
+  }
+
+  return result;
+}
+
+/* -------------------------------------------------------
+   Message notification
+-------------------------------------------------------- */
 export async function sendMessageNotification({
   matchId,
   userName,
@@ -20,7 +69,6 @@ export async function sendMessageNotification({
     return;
   }
 
-  // Derive a user-friendly body preview
   const bodyPreview = (() => {
     if (messageType === 'image') return `${userName} sent a photo`;
     if (messageType === 'gif') return `${userName} sent a GIF`;
@@ -30,10 +78,9 @@ export async function sendMessageNotification({
     return text.length > 140 ? `${text.slice(0, 137)}...` : text;
   })();
 
-  const messages = expo_tokens.map((token) => ({
-    to: token,
-    sound: 'default',
-    title: `${userName}`,
+  return sendPushNotification({
+    expo_tokens,
+    title: userName,
     body: bodyPreview,
     data: {
       type: 'message',
@@ -41,30 +88,38 @@ export async function sendMessageNotification({
       userName,
       userAvatar: userAvatar || '',
       otherUserId,
-      userId: otherUserId, // Alias for consistency
+      userId: otherUserId,
       messageText: messageText || '',
       messageType: messageType || 'text',
       route: '/(home)/(tabs)/(chats)/chatRoom',
     },
-  }));
+  });
+}
 
-  try {
-    const response = await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(messages),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result?.errors?.[0]?.message || 'Expo push error');
-    }
-
-    return result;
-  } catch (error) {
-    throw error;
+/* -------------------------------------------------------
+   Story like notification
+-------------------------------------------------------- */
+export async function sendStoryLikeNotification({
+  likerName,
+  storyOwnerId,
+  expo_tokens,
+}: {
+  likerName: string;
+  storyOwnerId: string;
+  expo_tokens: string[];
+}) {
+  if (!expo_tokens?.length) {
+    console.warn(`⚠️ No Expo tokens provided for user ${storyOwnerId}`);
+    return;
   }
+
+  return sendPushNotification({
+    expo_tokens,
+    title: 'Pookiey Stories',
+    body: `${likerName} liked your Pookiey story. Give them a swipe! 💘`,
+    data: {
+      type: 'story_like',
+      route: '/(home)/(tabs)/(story)',
+    },
+  });
 }
