@@ -1207,6 +1207,7 @@ export const getWomenEmployeeAnalytics = async (req: Request, res: Response) => 
                     displayName: user.displayName,
                     photoURL: user.photoURL,
                     profile: user.profile,
+                    girlEmployDetails: user.girlEmployDetails,
                 },
                 callActivity: {
                     totalTalkTimeSeconds: totalTalkTimeAll,
@@ -1258,5 +1259,79 @@ export const getWomenEmployeeAnalytics = async (req: Request, res: Response) => 
         });
     } catch (error) {
         res.status(500).json({ success: false, message: "Failed to fetch employee analytics" });
+    }
+};
+
+// Update women employee details (block/unblock, working hours, call permissions)
+export const updateWomenEmployeeDetails = async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.params;
+        const decodedUserId = decodeURIComponent(userId);
+        const body = req.body as {
+            isAvailableForCall?: boolean;
+            workingHourStart?: string | null;
+            workingHourEnd?: string | null;
+            isVideoCallAllowed?: boolean;
+            isAudioCallAllowed?: boolean;
+        };
+
+        const user = await User.findOne({
+            $and: [
+                { $or: [{ email: decodedUserId }, { user_id: decodedUserId }] },
+                { email: { $regex: "@pookiey\\.com", $options: "i" } },
+                { "profile.gender": "female" },
+            ],
+        });
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "Employee not found" });
+        }
+
+        if (!user.girlEmployDetails) {
+            user.girlEmployDetails = {
+                isGirlEmployee: true,
+                workingHourStart: null,
+                workingHourEnd: null,
+                isAvailableForCall: true,
+                isVideoCallAllowed: false,
+                isAudioCallAllowed: false,
+            };
+        }
+
+        if (typeof body.isAvailableForCall === "boolean") {
+            user.girlEmployDetails.isAvailableForCall = body.isAvailableForCall;
+        }
+        if (typeof body.isVideoCallAllowed === "boolean") {
+            user.girlEmployDetails.isVideoCallAllowed = body.isVideoCallAllowed;
+        }
+        if (typeof body.isAudioCallAllowed === "boolean") {
+            user.girlEmployDetails.isAudioCallAllowed = body.isAudioCallAllowed;
+        }
+
+        // Parse working hours: "HH:mm" or "HH:mm:ss" -> Date (reference date 1970-01-01 for time-only)
+        const parseTimeToDate = (value: string | null | undefined): Date | null => {
+            if (value == null || value === "") return null;
+            const match = String(value).trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+            if (!match) return null;
+            const d = new Date(1970, 0, 1, parseInt(match[1], 10), parseInt(match[2], 10), parseInt(match[3] ?? "0", 10), 0);
+            return isNaN(d.getTime()) ? null : d;
+        };
+        if (body.workingHourStart !== undefined) {
+            user.girlEmployDetails.workingHourStart = parseTimeToDate(body.workingHourStart ?? "") ?? null;
+        }
+        if (body.workingHourEnd !== undefined) {
+            user.girlEmployDetails.workingHourEnd = parseTimeToDate(body.workingHourEnd ?? "") ?? null;
+        }
+
+        await user.save();
+
+        res.json({
+            success: true,
+            data: {
+                girlEmployDetails: user.girlEmployDetails,
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Failed to update employee details" });
     }
 };

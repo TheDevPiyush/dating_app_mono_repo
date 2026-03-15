@@ -21,6 +21,19 @@ import {
   ComposedChart,
   Line,
 } from "recharts";
+import { Button } from "../../../../components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
+import { Switch } from "../../../../components/ui/switch";
+import {
+  Phone,
+  PhoneOff,
+  Clock,
+  Video,
+  Mic,
+  CheckCircle2,
+  XCircle,
+  Shield,
+} from "lucide-react";
 
 type RangeType = "today" | "weekly" | "monthly" | "all";
 
@@ -44,6 +57,15 @@ interface CallerRow {
   isNewCaller: boolean;
 }
 
+interface GirlEmployDetails {
+  isGirlEmployee?: boolean;
+  workingHourStart?: string | null;
+  workingHourEnd?: string | null;
+  isAvailableForCall?: boolean;
+  isVideoCallAllowed?: boolean;
+  isAudioCallAllowed?: boolean;
+}
+
 interface AnalyticsData {
   range: RangeType;
   employee: {
@@ -52,6 +74,7 @@ interface AnalyticsData {
     displayName?: string;
     photoURL?: string;
     profile?: unknown;
+    girlEmployDetails?: GirlEmployDetails | null;
   };
   callActivity: {
     totalTalkTimeSeconds: number;
@@ -116,6 +139,15 @@ function formatShortDate(iso: string): string {
   });
 }
 
+function dateToTimeString(value: string | Date | null | undefined): string {
+  if (value == null) return "";
+  const d = typeof value === "string" ? new Date(value) : value;
+  if (isNaN(d.getTime())) return "";
+  const h = d.getHours();
+  const m = d.getMinutes();
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 const PIE_COLORS = ["#E94057", "#FF7EB3", "#4B164C", "#6F6077"];
 const RANGE_OPTIONS: { value: RangeType; label: string }[] = [
   { value: "today", label: "Today" },
@@ -134,6 +166,15 @@ export default function WomenEmployeeAnalyticsPage() {
   const [range, setRange] = useState<RangeType>("all");
   const [showNewCallersOnly, setShowNewCallersOnly] = useState(false);
 
+  // Employee settings (block, working hours, call permissions)
+  const [isAvailableForCall, setIsAvailableForCall] = useState(true);
+  const [workingHourStart, setWorkingHourStart] = useState("");
+  const [workingHourEnd, setWorkingHourEnd] = useState("");
+  const [isVideoCallAllowed, setIsVideoCallAllowed] = useState(false);
+  const [isAudioCallAllowed, setIsAudioCallAllowed] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const fetchAnalytics = useCallback(
     async (rangeParam: RangeType) => {
       if (!userId) return;
@@ -149,6 +190,14 @@ export default function WomenEmployeeAnalyticsPage() {
         });
         if (response.success && response.data) {
           setData(response.data);
+          const g = response.data.employee?.girlEmployDetails;
+          if (g) {
+            setIsAvailableForCall(g.isAvailableForCall ?? true);
+            setWorkingHourStart(dateToTimeString(g.workingHourStart));
+            setWorkingHourEnd(dateToTimeString(g.workingHourEnd));
+            setIsVideoCallAllowed(g.isVideoCallAllowed ?? false);
+            setIsAudioCallAllowed(g.isAudioCallAllowed ?? false);
+          }
         } else {
           setError("Failed to load analytics");
         }
@@ -164,6 +213,72 @@ export default function WomenEmployeeAnalyticsPage() {
   useEffect(() => {
     void fetchAnalytics(range);
   }, [range, fetchAnalytics]);
+
+  const updateEmployeeDetails = useCallback(
+    async (payload: {
+      isAvailableForCall?: boolean;
+      workingHourStart?: string | null;
+      workingHourEnd?: string | null;
+      isVideoCallAllowed?: boolean;
+      isAudioCallAllowed?: boolean;
+    }) => {
+      if (!userId) return;
+      try {
+        setSaveLoading(true);
+        setSaveError(null);
+        const response = await callBackend<{ girlEmployDetails: GirlEmployDetails }>(
+          supabase,
+          `/api/v1/admin/women-employees/${encodeURIComponent(userId)}`,
+          { method: "PATCH", jsonBody: payload }
+        );
+        if (response.success && response.data && data) {
+          setData({
+            ...data,
+            employee: {
+              ...data.employee,
+              girlEmployDetails: { ...data.employee.girlEmployDetails, ...response.data.girlEmployDetails },
+            },
+          });
+        } else {
+          setSaveError("Failed to update");
+        }
+      } catch (err) {
+        setSaveError(err instanceof Error ? err.message : "Request failed");
+      } finally {
+        setSaveLoading(false);
+      }
+    },
+    [supabase, userId, data]
+  );
+
+  const handleBlockUnblock = useCallback(() => {
+    const next = !isAvailableForCall;
+    setIsAvailableForCall(next);
+    void updateEmployeeDetails({ isAvailableForCall: next });
+  }, [isAvailableForCall, updateEmployeeDetails]);
+
+  const handleSaveWorkingHours = useCallback(() => {
+    void updateEmployeeDetails({
+      workingHourStart: workingHourStart || null,
+      workingHourEnd: workingHourEnd || null,
+    });
+  }, [workingHourStart, workingHourEnd, updateEmployeeDetails]);
+
+  const handleVideoCallToggle = useCallback(
+    (checked: boolean) => {
+      setIsVideoCallAllowed(checked);
+      void updateEmployeeDetails({ isVideoCallAllowed: checked });
+    },
+    [updateEmployeeDetails]
+  );
+
+  const handleAudioCallToggle = useCallback(
+    (checked: boolean) => {
+      setIsAudioCallAllowed(checked);
+      void updateEmployeeDetails({ isAudioCallAllowed: checked });
+    },
+    [updateEmployeeDetails]
+  );
 
   if (loading && !data) {
     return (
@@ -306,6 +421,200 @@ export default function WomenEmployeeAnalyticsPage() {
           </p>
         </div>
       </div>
+
+      {/* Availability & call settings — engaging layout */}
+      <section className="space-y-5">
+        <div className="flex items-center gap-2">
+          <Shield className="h-5 w-5 text-[#E94057]" aria-hidden />
+          <h2 className="text-xl font-bold text-[#2A1F2D]">
+            Availability &amp; call settings
+          </h2>
+        </div>
+        {saveError && (
+          <div className="rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-2 text-sm text-red-600">
+            {saveError}
+          </div>
+        )}
+
+        {/* Call status — prominent status card */}
+        <div
+          className={`relative overflow-hidden rounded-2xl border-2 p-6 transition-all ${
+            isAvailableForCall
+              ? "border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 to-white/80"
+              : "border-red-500/40 bg-gradient-to-br from-red-500/10 to-white/80"
+          }`}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div
+                className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${
+                  isAvailableForCall
+                    ? "bg-emerald-500/20 text-emerald-600"
+                    : "bg-red-500/20 text-red-600"
+                }`}
+              >
+                {isAvailableForCall ? (
+                  <Phone className="h-7 w-7" />
+                ) : (
+                  <PhoneOff className="h-7 w-7" />
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[#6F6077]">Call status</p>
+                <p
+                  className={`text-lg font-bold ${
+                    isAvailableForCall ? "text-emerald-700" : "text-red-700"
+                  }`}
+                >
+                  {isAvailableForCall ? (
+                    <>Available for calls</>
+                  ) : (
+                    <>Blocked — no calls</>
+                  )}
+                </p>
+                <p className="text-xs text-[#6F6077] mt-0.5">
+                  {isAvailableForCall
+                    ? "Users can place calls to this employee"
+                    : "Calls are disabled for this employee"}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant={isAvailableForCall ? "destructive" : "default"}
+              size="lg"
+              onClick={handleBlockUnblock}
+              disabled={saveLoading}
+              className="shrink-0 shadow-md hover:shadow-lg transition-shadow"
+            >
+              {isAvailableForCall ? (
+                <>
+                  <XCircle className="h-4 w-4" />
+                  Block user
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4" />
+                  Unblock user
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Working hours — schedule strip */}
+        <div className="glass-card rounded-2xl p-6">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#4B164C]/15 text-[#4B164C]">
+                <Clock className="h-6 w-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-[#2A1F2D] mb-1">
+                  Working hours
+                </p>
+                <p className="text-xs text-[#6F6077] mb-3">
+                  Optional window when this employee is on schedule
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      value={workingHourStart}
+                      onChange={(e) => setWorkingHourStart(e.target.value)}
+                      className="rounded-xl border-2 border-white/80 bg-white/90 px-3 py-2.5 text-[#2A1F2D] font-medium focus:outline-none focus:ring-2 focus:ring-[#E94057] focus:border-transparent transition-shadow"
+                    />
+                    <span className="text-[#6F6077] font-medium">→</span>
+                  </div>
+                  <input
+                    type="time"
+                    value={workingHourEnd}
+                    onChange={(e) => setWorkingHourEnd(e.target.value)}
+                    className="rounded-xl border-2 border-white/80 bg-white/90 px-3 py-2.5 text-[#2A1F2D] font-medium focus:outline-none focus:ring-2 focus:ring-[#E94057] focus:border-transparent transition-shadow"
+                  />
+                </div>
+              </div>
+            </div>
+            <Button
+              size="default"
+              onClick={handleSaveWorkingHours}
+              disabled={saveLoading}
+              className="bg-[#4B164C] hover:bg-[#4B164C]/90 text-white shrink-0"
+            >
+              {saveLoading ? "Saving…" : "Save hours"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Call permissions — feature toggles in cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div
+            className={`group rounded-2xl border-2 p-5 transition-all ${
+              isVideoCallAllowed
+                ? "border-[#E94057]/50 bg-[#E94057]/5"
+                : "border-white/80 bg-white/50 hover:bg-white/70"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex gap-3 min-w-0">
+                <div
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                    isVideoCallAllowed
+                      ? "bg-[#E94057]/20 text-[#E94057]"
+                      : "bg-[#6F6077]/15 text-[#6F6077]"
+                  }`}
+                >
+                  <Video className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-semibold text-[#2A1F2D]">Video calls</p>
+                  <p className="text-xs text-[#6F6077] mt-0.5">
+                    Allow users to start video calls
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={isVideoCallAllowed}
+                onCheckedChange={handleVideoCallToggle}
+                disabled={saveLoading}
+                className="shrink-0"
+              />
+            </div>
+          </div>
+          <div
+            className={`group rounded-2xl border-2 p-5 transition-all ${
+              isAudioCallAllowed
+                ? "border-[#4B164C]/50 bg-[#4B164C]/5"
+                : "border-white/80 bg-white/50 hover:bg-white/70"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex gap-3 min-w-0">
+                <div
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                    isAudioCallAllowed
+                      ? "bg-[#4B164C]/20 text-[#4B164C]"
+                      : "bg-[#6F6077]/15 text-[#6F6077]"
+                  }`}
+                >
+                  <Mic className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-semibold text-[#2A1F2D]">Audio calls</p>
+                  <p className="text-xs text-[#6F6077] mt-0.5">
+                    Allow users to start voice-only calls
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={isAudioCallAllowed}
+                onCheckedChange={handleAudioCallToggle}
+                disabled={saveLoading}
+                className="shrink-0"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Hero stats strip */}
       <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">

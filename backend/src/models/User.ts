@@ -80,6 +80,8 @@ export interface IPookieyGirlEmployeeDetails {
     workingHourStart?: Date | null;
     workingHourEnd?: Date | null;
     isAvailableForCall?: boolean;
+    isVideoCallAllowed?: boolean;
+    isAudioCallAllowed?: boolean;
 }
 
 export interface IUserWallet {
