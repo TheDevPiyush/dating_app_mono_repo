@@ -32,7 +32,7 @@ export default function RechargeScreen() {
             if (data.type === 'recharge_success' && token) {
                 fetchBalance(token);
             }
-        } catch {}
+        } catch { }
     };
 
     if (!webviewSource) {
@@ -44,14 +44,12 @@ export default function RechargeScreen() {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <WebView
-                style={styles.webview}
-                source={webviewSource}
-                cacheEnabled={false}
-                onMessage={handleMessage}
-            />
-        </SafeAreaView>
+        <WebView
+            style={styles.webview}
+            source={webviewSource}
+            cacheEnabled={false}
+            onMessage={handleMessage}
+        />
     );
 }
 

@@ -10,7 +10,7 @@ import Footer from "./footer";
  * Routes that render without any app chrome (Navbar, Sidebar, Footer).
  * Typically pages opened inside a mobile-app WebView.
  */
-const BARE_ROUTES = ["/pay"];
+const BARE_ROUTES = ["/pay", "/recharge"];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
