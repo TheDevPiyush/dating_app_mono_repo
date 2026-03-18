@@ -13,6 +13,8 @@ export interface ISubscription extends Document {
     autoRenew: boolean;
     paymentProvider: "razorpay" | "stripe" | "paypal" | "apple" | "google";
     transactionId?: string;
+    razorpaySubscriptionId?: string;
+    razorpayPlanId?: string;
     lastPaymentAt?: Date;
     metadata?: Record<string, unknown>;
     createdAt: Date;
@@ -38,6 +40,8 @@ const SubscriptionSchema = new Schema<ISubscription>(
             default: "razorpay",
         },
         transactionId: { type: String, index: true },
+        razorpaySubscriptionId: { type: String, sparse: true, index: true },
+        razorpayPlanId: { type: String },
         lastPaymentAt: { type: Date },
         metadata: { type: Schema.Types.Mixed },
     },

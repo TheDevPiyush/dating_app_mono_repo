@@ -8,6 +8,9 @@ import {
     getPlans,
     verifyOrder,
     subscriptionWebhook,
+    createSubscriptionOrder,
+    verifySubscriptionOrder,
+    cancelSubscription,
 } from "../controllers/subscriptionController";
 
 const subscriptionRouter = Router();
@@ -24,7 +27,14 @@ subscriptionRouter.use(verifyUser);
 subscriptionRouter.get("/plans", getPlans);
 subscriptionRouter.get("/current", getCurrentSubscription);
 subscriptionRouter.get("/payments", getPayments);
+
+// One-time order flow (web backward compat)
 subscriptionRouter.post("/create-order", createOrder);
 subscriptionRouter.post("/verify", verifyOrder);
+
+// E-mandate subscription flow (native app)
+subscriptionRouter.post("/create-subscription", createSubscriptionOrder);
+subscriptionRouter.post("/verify-subscription", verifySubscriptionOrder);
+subscriptionRouter.post("/cancel", cancelSubscription);
 
 export default subscriptionRouter;

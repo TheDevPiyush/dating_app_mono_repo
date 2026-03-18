@@ -289,7 +289,25 @@ const Settings = () => {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.decorativeBorder} />
+          {isSubscriptionActive ? (
+            <>
+              <View style={styles.decorativeBorder} />
+              <TouchableOpacity
+                style={[styles.settingItem]}
+                onPress={() => router.push('/(home)/(tabs)/(setting)/subscriptionCancelScreen')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.settingIconContainer}>
+                  <Ionicons name="close-circle-outline" size={24} color={Colors.primary.red} />
+                </View>
+                <ThemedText style={styles.settingText}>Cancel Subscription</ThemedText>
+                <Ionicons name="chevron-forward" size={18} color={Colors.text.tertiary} />
+              </TouchableOpacity>
+              <View style={styles.decorativeBorder} />
+            </>
+          ) : (
+            <View style={styles.decorativeBorder} />
+          )}
 
           <TouchableOpacity
             style={[styles.settingItem]}

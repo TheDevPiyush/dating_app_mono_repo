@@ -20,6 +20,7 @@ import blogRoutes from "./routes/blog.routes";
 import walletRouter from "./routes/walletRoutes";
 import exploreRouter from "./routes/exploreRoutes";
 import { seedDefaultMinutePacks } from "./models/MinutePack";
+import { syncRazorpayPlans } from "./services/razorpayPlanSync";
 
 dotenv.config();
 
@@ -63,4 +64,5 @@ app.use('/api/v1/explore', exploreRouter);
 httpServer.listen(PORT as number, "0.0.0.0", async () => {
     console.info(`Socket.io & Server running on port ${PORT}`);
     await seedDefaultMinutePacks().catch(console.error);
+    await syncRazorpayPlans().catch(console.error);
 });
