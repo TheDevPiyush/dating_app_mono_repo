@@ -2,19 +2,16 @@ import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import {
   Modal,
   View,
+  Text,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
 import { useCall } from '@/context/CallContext';
-import { useWalletStore } from '@/store/walletStore';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/config/supabaseConfig';
 import { Colors } from '@/constants/Colors';
+import { router } from 'expo-router';
 
 const INITIAL_DELAY_MS = 4_000;
 const SECOND_POPUP_DELAY_MS = 3 * 60 * 1_000;
@@ -33,12 +30,9 @@ export default function PromoPopup() {
   const insets = useSafeAreaInsets();
   const { dbUser } = useAuthStore();
   const { callStatus } = useCall();
-  const { fetchBalance } = useWalletStore();
-  const { token } = useAuth();
 
   const [visible, setVisible] = useState(false);
   const [promoType, setPromoType] = useState<PromoType>(randomPromoType);
-  const [userToken, setUserToken] = useState<string | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dismissCountRef = useRef(0);
@@ -55,14 +49,6 @@ export default function PromoPopup() {
   const isOnCall =
     callStatus.isRinging || callStatus.isConnecting || callStatus.isConnected;
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      const t = data.session?.access_token;
-      if (t) setUserToken(t);
-    });
-  }, []);
-
-  // Hide immediately if a call starts while the popup is open
   useEffect(() => {
     if (isOnCall && visible) setVisible(false);
   }, [isOnCall, visible]);
@@ -102,27 +88,21 @@ export default function PromoPopup() {
     scheduleNext(delay);
   }, [scheduleNext]);
 
-  const handleRechargeMessage = useCallback(
-    (event: any) => {
-      try {
-        const data = JSON.parse(event.nativeEvent.data);
-        if (data.type === 'recharge_success' && token) {
-          fetchBalance(token);
-        }
-      } catch {}
-    },
-    [token, fetchBalance],
-  );
+  const handleAction = useCallback(() => {
+    setVisible(false);
+    dismissCountRef.current += 1;
+    scheduleNext(randomRecurringDelay());
 
-  const webviewUri = useMemo(() => {
-    if (!userToken) return null;
-    const base = process.env.EXPO_PUBLIC_WEB_FRONTEND_URL;
-    return promoType === 'subscription'
-      ? `${base}/pay/?user-token-for-payment=${userToken}`
-      : `${base}/recharge/?user-token-for-payment=${userToken}`;
-  }, [userToken, promoType]);
+    if (promoType === 'subscription') {
+      router.push('/(home)/subscriptionScreenHome');
+    } else {
+      router.push('/(home)/rechargeScreen');
+    }
+  }, [promoType, scheduleNext]);
 
-  if (!visible || !webviewUri) return null;
+  if (!visible) return null;
+
+  const isSubscription = promoType === 'subscription';
 
   return (
     <Modal
@@ -135,29 +115,44 @@ export default function PromoPopup() {
       <View style={styles.backdrop}>
         <TouchableOpacity style={styles.backdropTouch} activeOpacity={1} onPress={handleDismiss} />
 
-        <View style={[styles.card, { marginTop: insets.top + 24, marginBottom: insets.bottom + 16 }]}>
-          <View style={styles.header}>
+        <View style={[styles.card, { marginTop: insets.top + 60, marginBottom: insets.bottom + 60 }]}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={handleDismiss}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="close" size={20} color={Colors.titleColor} />
+          </TouchableOpacity>
+
+          <View style={styles.content}>
+            <Ionicons
+              name={isSubscription ? 'diamond-outline' : 'wallet-outline'}
+              size={48}
+              color={Colors.primaryBackgroundColor}
+            />
+            <Text style={styles.title}>
+              {isSubscription ? 'Go Premium' : 'Top Up Minutes'}
+            </Text>
+            <Text style={styles.subtitle}>
+              {isSubscription
+                ? 'Unlock unlimited swipes, voice calling and more with a Pookiey subscription.'
+                : 'Running low on talk time? Grab a minutes pack and keep the conversations going.'}
+            </Text>
+
             <TouchableOpacity
-              style={styles.closeButton}
-              onPress={handleDismiss}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.actionButton}
+              onPress={handleAction}
+              activeOpacity={0.8}
             >
-              <Ionicons name="close" size={22} color={Colors.titleColor} />
+              <Text style={styles.actionButtonText}>
+                {isSubscription ? 'View Plans' : 'Buy Minutes'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={handleDismiss}>
+              <Text style={styles.laterText}>Maybe later</Text>
             </TouchableOpacity>
           </View>
-
-          <WebView
-            style={styles.webview}
-            source={{ uri: webviewUri }}
-            cacheEnabled={false}
-            startInLoadingState
-            renderLoading={() => (
-              <View style={styles.loading}>
-                <ActivityIndicator size="large" color={Colors.primaryBackgroundColor} />
-              </View>
-            )}
-            onMessage={promoType === 'recharge' ? handleRechargeMessage : undefined}
-          />
         </View>
       </View>
     </Modal>
@@ -175,10 +170,9 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   card: {
-    width: '92%',
-    flex: 1,
+    width: '85%',
     backgroundColor: '#fff',
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: 'hidden',
     elevation: 10,
     shadowColor: '#000',
@@ -186,31 +180,51 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 12,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
   closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: '#F0F0F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  webview: {
-    flex: 1,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-  loading: {
-    ...StyleSheet.absoluteFillObject,
+  content: {
+    paddingVertical: 36,
+    paddingHorizontal: 24,
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
+    gap: 14,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.titleColor,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  actionButton: {
+    backgroundColor: Colors.primaryBackgroundColor,
+    paddingVertical: 14,
+    paddingHorizontal: 48,
+    borderRadius: 14,
+    marginTop: 6,
+  },
+  actionButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  laterText: {
+    fontSize: 13,
+    color: Colors.text.tertiary,
+    marginTop: 2,
   },
 });

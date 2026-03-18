@@ -5,10 +5,12 @@ import { IUser } from "../models/User";
 import { razorpayClient } from "../config/razorpay";
 import {
     SUBSCRIPTION_PLANS,
+    RAZORPAY_PLAN_IDS,
     SubscriptionPlanConfig,
     SubscriptionPlanId,
 } from "../config/subscriptionPlans";
 import { SubscriptionStatus } from "../models/subscription";
+import { getRazorpayPublicKey } from "../config/razorpay";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -334,6 +336,254 @@ export const getUserSubscriptionPlan = async (user_id: string) => {
     const user = await User.findOne({ user_id }).lean<IUser>();
     if (!user) throw new Error("User not found");
     return user.subscription?.plan;
+};
+
+// ─── Razorpay E-Mandate Subscriptions ─────────────────────────────────────────
+
+export const createRazorpaySubscription = async ({
+    userId,
+    planId,
+}: CreateOrderParams) => {
+    const razorpayPlanId = RAZORPAY_PLAN_IDS[planId];
+    if (!razorpayPlanId) {
+        throw new Error(`Razorpay plan not synced for "${planId}". Restart server to sync.`);
+    }
+
+    const plan = getPlanConfig(planId);
+    const user = await User.findOne({ user_id: userId }).lean<IUser>();
+    if (!user) throw new Error("User not found");
+
+    const userMongoId = user._id as Types.ObjectId;
+
+    // Cancel any existing Razorpay subscription before creating a new one
+    const existingSub = await Subscription.findOne({
+        $or: [{ user_id: userId }, { userId: userMongoId }],
+        status: "active",
+        razorpaySubscriptionId: { $exists: true, $ne: null },
+    });
+
+    if (existingSub?.razorpaySubscriptionId) {
+        try {
+            await razorpayClient.subscriptions.cancel(existingSub.razorpaySubscriptionId, false);
+        } catch (e: any) {
+            console.warn("Could not cancel old subscription:", e?.message);
+        }
+    }
+
+    const razorpaySub = await razorpayClient.subscriptions.create({
+        plan_id: razorpayPlanId,
+        total_count: 12,
+        quantity: 1,
+        customer_notify: 1,
+        notes: { userId, planId, internalPlanId: planId },
+    } as any);
+
+    // Upsert a pending subscription record
+    await Subscription.findOneAndUpdate(
+        { $or: [{ user_id: userId }, { userId: userMongoId }] },
+        {
+            user_id: userId,
+            userId: userMongoId,
+            plan: planId,
+            status: "pending",
+            startDate: new Date(),
+            endDate: new Date(Date.now() + plan.durationDays * 86400000),
+            autoRenew: true,
+            paymentProvider: "razorpay",
+            razorpaySubscriptionId: razorpaySub.id,
+            razorpayPlanId,
+        },
+        { upsert: true, new: true },
+    );
+
+    await updateUserSubscriptionSnapshot(userMongoId, {
+        status: "pending",
+        plan: planId,
+        autoRenew: true,
+        provider: "razorpay",
+    });
+
+    return {
+        subscriptionId: razorpaySub.id,
+        razorpayKey: getRazorpayPublicKey(),
+        plan,
+    };
+};
+
+export const verifySubscriptionSignature = (
+    razorpayPaymentId: string,
+    razorpaySubscriptionId: string,
+    razorpaySignature: string,
+): boolean => {
+    const keySecret = process.env.RAZORPAY_KEY_SECRET ?? "";
+    const generated = crypto
+        .createHmac("sha256", keySecret)
+        .update(`${razorpayPaymentId}|${razorpaySubscriptionId}`)
+        .digest("hex");
+    return generated === razorpaySignature;
+};
+
+export const cancelRazorpaySubscription = async (userId: string) => {
+    const user = await User.findOne({ user_id: userId }).lean<IUser>();
+    if (!user) throw new Error("User not found");
+
+    const userMongoId = user._id as Types.ObjectId;
+    const sub = await Subscription.findOne({
+        $or: [{ user_id: userId }, { userId: userMongoId }],
+        status: "active",
+        razorpaySubscriptionId: { $exists: true, $ne: null },
+    });
+
+    if (!sub?.razorpaySubscriptionId) {
+        throw new Error("No active Razorpay subscription found");
+    }
+
+    await razorpayClient.subscriptions.cancel(sub.razorpaySubscriptionId, true);
+
+    sub.autoRenew = false;
+    await sub.save();
+
+    await updateUserSubscriptionSnapshot(userMongoId, {
+        status: "active",
+        plan: sub.plan,
+        startDate: sub.startDate,
+        endDate: sub.endDate,
+        autoRenew: false,
+        lastPaymentAt: sub.lastPaymentAt ?? null,
+        provider: "razorpay",
+    });
+
+    return sub;
+};
+
+// ─── Subscription Webhook Lifecycle Handlers ──────────────────────────────────
+
+export const handleSubscriptionAuthenticated = async (payload: any) => {
+    const razorpaySubId = payload.subscription?.entity?.id;
+    if (!razorpaySubId) return;
+
+    console.info(`Subscription ${razorpaySubId} — mandate authenticated`);
+};
+
+export const handleSubscriptionActivated = async (payload: any) => {
+    const subEntity = payload.subscription?.entity;
+    if (!subEntity?.id) return;
+
+    const sub = await Subscription.findOne({ razorpaySubscriptionId: subEntity.id });
+    if (!sub) return;
+
+    const user = await User.findOne({ user_id: sub.user_id }).lean<IUser>();
+    if (!user) return;
+
+    const planConfig = getPlanConfig(sub.plan);
+    const now = new Date();
+    const endDate = new Date(now.getTime() + planConfig.durationDays * 86400000);
+
+    sub.status = "active";
+    sub.startDate = now;
+    sub.endDate = endDate;
+    sub.lastPaymentAt = now;
+    await sub.save();
+
+    await updateUserSubscriptionSnapshot(user._id as Types.ObjectId, {
+        status: "active",
+        plan: sub.plan,
+        startDate: now,
+        endDate,
+        autoRenew: true,
+        lastPaymentAt: now,
+        provider: "razorpay",
+    });
+
+    console.info(`Subscription ${subEntity.id} activated for user ${sub.user_id}`);
+};
+
+export const handleSubscriptionCharged = async (payload: any) => {
+    const subEntity = payload.subscription?.entity;
+    const paymentEntity = payload.payment?.entity;
+    if (!subEntity?.id) return;
+
+    const sub = await Subscription.findOne({ razorpaySubscriptionId: subEntity.id });
+    if (!sub) return;
+
+    const user = await User.findOne({ user_id: sub.user_id }).lean<IUser>();
+    if (!user) return;
+
+    const planConfig = getPlanConfig(sub.plan);
+    const now = new Date();
+    const endDate = new Date(now.getTime() + planConfig.durationDays * 86400000);
+
+    sub.status = "active";
+    sub.endDate = endDate;
+    sub.lastPaymentAt = now;
+    if (paymentEntity?.id) sub.transactionId = paymentEntity.id;
+    await sub.save();
+
+    await updateUserSubscriptionSnapshot(user._id as Types.ObjectId, {
+        status: "active",
+        plan: sub.plan,
+        startDate: sub.startDate,
+        endDate,
+        autoRenew: true,
+        lastPaymentAt: now,
+        provider: "razorpay",
+    });
+
+    console.info(`Subscription ${subEntity.id} charged (renewal) for user ${sub.user_id}`);
+};
+
+export const handleSubscriptionHalted = async (payload: any) => {
+    const subEntity = payload.subscription?.entity;
+    if (!subEntity?.id) return;
+
+    const sub = await Subscription.findOne({ razorpaySubscriptionId: subEntity.id });
+    if (!sub) return;
+
+    const user = await User.findOne({ user_id: sub.user_id }).lean<IUser>();
+    if (!user) return;
+
+    sub.status = "expired";
+    sub.autoRenew = false;
+    await sub.save();
+
+    await updateUserSubscriptionSnapshot(user._id as Types.ObjectId, {
+        status: "expired",
+        plan: sub.plan,
+        startDate: sub.startDate,
+        endDate: sub.endDate,
+        autoRenew: false,
+        lastPaymentAt: sub.lastPaymentAt ?? null,
+        provider: "razorpay",
+    });
+
+    console.info(`Subscription ${subEntity.id} halted for user ${sub.user_id}`);
+};
+
+export const handleSubscriptionCancelled = async (payload: any) => {
+    const subEntity = payload.subscription?.entity;
+    if (!subEntity?.id) return;
+
+    const sub = await Subscription.findOne({ razorpaySubscriptionId: subEntity.id });
+    if (!sub) return;
+
+    const user = await User.findOne({ user_id: sub.user_id }).lean<IUser>();
+    if (!user) return;
+
+    sub.status = "cancelled";
+    sub.autoRenew = false;
+    await sub.save();
+
+    await updateUserSubscriptionSnapshot(user._id as Types.ObjectId, {
+        status: "cancelled",
+        plan: sub.plan,
+        startDate: sub.startDate,
+        endDate: sub.endDate,
+        autoRenew: false,
+        lastPaymentAt: sub.lastPaymentAt ?? null,
+        provider: "razorpay",
+    });
+
+    console.info(`Subscription ${subEntity.id} cancelled for user ${sub.user_id}`);
 };
 
 // ─── Interaction Limits ───────────────────────────────────────────────────────

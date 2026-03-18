@@ -12,11 +12,11 @@ export default function _layout() {
                 <Stack.Screen name="userProfile" options={{ presentation: 'fullScreenModal' }} />
                 <Stack.Screen name="annoucements" options={{ presentation: 'fullScreenModal' }} />
                 <Stack.Screen name="subscriptionScreenHome"
-                    options={{ presentation: 'modal', headerShown: true }} />
+                    options={{ presentation: 'modal' }} />
                 <Stack.Screen name="employeeProfile"
                     options={{ presentation: 'fullScreenModal' }} />
                 <Stack.Screen name="rechargeScreen"
-                    options={{ presentation: 'modal', headerShown: true, headerTitle: 'Recharge Minutes' }} />
+                    options={{ presentation: 'modal' }} />
             </Stack>
             <PromoPopup />
         </CallProvider>

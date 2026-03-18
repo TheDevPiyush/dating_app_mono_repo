@@ -12,6 +12,14 @@ import {
     handlePaymentCaptured,
     handlePaymentFailed,
     abandonPendingPayments,
+    createRazorpaySubscription,
+    verifySubscriptionSignature,
+    cancelRazorpaySubscription,
+    handleSubscriptionAuthenticated,
+    handleSubscriptionActivated,
+    handleSubscriptionCharged,
+    handleSubscriptionHalted,
+    handleSubscriptionCancelled,
 } from "../services/subscriptionService";
 import {
     handleRechargeCaptured,
@@ -177,6 +185,88 @@ export const verifyOrder = async (req: Request, res: Response) => {
     }
 };
 
+// ─── E-Mandate Subscription (native app flow) ────────────────────────────────
+
+export const createSubscriptionOrder = async (req: Request, res: Response) => {
+    try {
+        const planId = req.body.planId as string;
+        if (!planId || !isValidPlanId(planId)) {
+            return res.status(400).json({ success: false, message: "Invalid plan" });
+        }
+
+        const user = req.user;
+        if (!user?._id) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+
+        const result = await createRazorpaySubscription({
+            userId: user.user_id,
+            planId: planId as SubscriptionPlanId,
+        });
+
+        res.json({ success: true, data: result });
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: error instanceof Error ? error.message : "Failed to create subscription",
+        });
+    }
+};
+
+export const verifySubscriptionOrder = async (req: Request, res: Response) => {
+    try {
+        const {
+            razorpay_payment_id: paymentId,
+            razorpay_subscription_id: subscriptionId,
+            razorpay_signature: signature,
+        } = req.body;
+
+        if (!paymentId || !subscriptionId || !signature) {
+            return res.status(400).json({ success: false, message: "Missing payment details" });
+        }
+
+        const user = req.user;
+        if (!user?._id) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+
+        const valid = verifySubscriptionSignature(paymentId, subscriptionId, signature);
+        if (!valid) {
+            return res.status(400).json({ success: false, message: "Invalid signature" });
+        }
+
+        const userMongoId = new Types.ObjectId(user._id.toString());
+        const subscription = await getActiveSubscription(userMongoId, user.user_id);
+
+        res.json({ success: true, data: { subscription, verified: true } });
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: error instanceof Error ? error.message : "Verification failed",
+        });
+    }
+};
+
+export const cancelSubscription = async (req: Request, res: Response) => {
+    try {
+        const user = req.user;
+        if (!user?._id) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+
+        const sub = await cancelRazorpaySubscription(user.user_id);
+
+        res.json({ success: true, data: { subscription: sub } });
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: error instanceof Error ? error.message : "Cancellation failed",
+        });
+    }
+};
+
+// ─── Webhook ──────────────────────────────────────────────────────────────────
+
 export const subscriptionWebhook = async (req: Request, res: Response) => {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET!;
     const signature = req.headers["x-razorpay-signature"] as string;
@@ -218,14 +308,39 @@ export const subscriptionWebhook = async (req: Request, res: Response) => {
     const event = parsedBody.event as string;
     const payment = parsedBody.payload?.payment?.entity;
 
-    if (!payment) {
-        console.error("Webhook received with no payment entity");
-        return;
-    }
-
-    const isRecharge = payment.notes?.type === "recharge";
-
     try {
+        // Subscription lifecycle events (E-mandate)
+        if (event.startsWith("subscription.")) {
+            switch (event) {
+                case "subscription.authenticated":
+                    await handleSubscriptionAuthenticated(parsedBody.payload);
+                    break;
+                case "subscription.activated":
+                    await handleSubscriptionActivated(parsedBody.payload);
+                    break;
+                case "subscription.charged":
+                    await handleSubscriptionCharged(parsedBody.payload);
+                    break;
+                case "subscription.halted":
+                    await handleSubscriptionHalted(parsedBody.payload);
+                    break;
+                case "subscription.cancelled":
+                    await handleSubscriptionCancelled(parsedBody.payload);
+                    break;
+                default:
+                    console.info(`Unhandled subscription event: ${event}`);
+            }
+            return;
+        }
+
+        // Payment events (one-time orders)
+        if (!payment) {
+            console.error("Webhook received with no payment entity");
+            return;
+        }
+
+        const isRecharge = payment.notes?.type === "recharge";
+
         if (isRecharge) {
             if (event === "payment.captured") {
                 await handleRechargeCaptured(payment);

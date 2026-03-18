@@ -7,8 +7,13 @@ export interface SubscriptionPlanConfig {
     currency: "INR";
     durationDays: number;
     features: string[];
-    interaction_per_day: number
+    interaction_per_day: number;
+    razorpayPeriod: "daily" | "weekly" | "monthly" | "yearly";
+    razorpayInterval: number;
 }
+
+// Mutable runtime map — populated by razorpayPlanSync at startup
+export const RAZORPAY_PLAN_IDS: Partial<Record<SubscriptionPlanId, string>> = {};
 
 export const SUBSCRIPTION_PLANS: Record<SubscriptionPlanId, SubscriptionPlanConfig> = {
     free: {
@@ -18,7 +23,9 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionPlanId, SubscriptionPlanConf
         currency: "INR",
         durationDays: 0,
         features: [],
-        interaction_per_day: 1
+        interaction_per_day: 1,
+        razorpayPeriod: "monthly",
+        razorpayInterval: 1,
     },
     basic: {
         id: "basic",
@@ -30,7 +37,9 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionPlanId, SubscriptionPlanConf
             "15 Swipes Per Day",
             "1 Spotlight Per Month",
         ],
-        interaction_per_day: 15
+        interaction_per_day: 15,
+        razorpayPeriod: "monthly",
+        razorpayInterval: 1,
     },
     premium: {
         id: "premium",
@@ -42,7 +51,9 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionPlanId, SubscriptionPlanConf
             "25 Swipes Per Day",
             "Voice Calling to Matched Users",
         ],
-        interaction_per_day: 25
+        interaction_per_day: 25,
+        razorpayPeriod: "monthly",
+        razorpayInterval: 3,
     },
     super: {
         id: "super",
@@ -55,7 +66,9 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionPlanId, SubscriptionPlanConf
             "Voice Calling to Matched Users",
             "Premium Support and profile boost",
         ],
-        interaction_per_day: 30
+        interaction_per_day: 30,
+        razorpayPeriod: "monthly",
+        razorpayInterval: 6,
     },
 };
 
