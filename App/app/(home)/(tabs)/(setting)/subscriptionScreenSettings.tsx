@@ -224,7 +224,6 @@ const styles = StyleSheet.create({
     },
     screenTitle: {
         fontSize: 22,
-        fontWeight: '800',
         color: Colors.titleColor,
         marginBottom: 4,
     },
