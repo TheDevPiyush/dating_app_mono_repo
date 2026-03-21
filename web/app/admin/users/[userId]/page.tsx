@@ -439,6 +439,8 @@ export default function UserDetailPage() {
                 </p>
               </div>
             )}
+            {/* Photos 
+            
             {userDetails.profile.photos && userDetails.profile.photos.length > 0 && (
               <div className="md:col-span-2">
                 <p className="text-xs md:text-sm text-[#6F6077] mb-2">Photos ({userDetails.profile.photos.length})</p>
@@ -475,52 +477,53 @@ export default function UserDetailPage() {
                 </div>
               </div>
             )}
+            */}
           </div>
         </div>
       )}
 
       {/* Preferences */}
-      {userDetails.preferences && 
-       (userDetails.preferences.distanceMaxKm !== undefined || 
-        userDetails.preferences.ageRange || 
-        (userDetails.preferences.showMe && userDetails.preferences.showMe.length > 0)) && (
-        <div className="glass-card rounded-2xl p-4 md:p-6">
-          <h2 className="text-lg md:text-xl font-semibold text-[#2A1F2D] mb-4">Preferences</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {userDetails.preferences.distanceMaxKm !== undefined && (
-              <div>
-                <p className="text-xs md:text-sm text-[#6F6077] mb-1">Max Distance</p>
-                <p className="text-sm md:text-base font-medium text-[#2A1F2D]">
-                  {userDetails.preferences.distanceMaxKm} km
-                </p>
-              </div>
-            )}
-            {userDetails.preferences.ageRange && (
-              <div>
-                <p className="text-xs md:text-sm text-[#6F6077] mb-1">Age Range</p>
-                <p className="text-sm md:text-base font-medium text-[#2A1F2D]">
-                  {userDetails.preferences.ageRange[0]} - {userDetails.preferences.ageRange[1]} years
-                </p>
-              </div>
-            )}
-            {userDetails.preferences.showMe && userDetails.preferences.showMe.length > 0 && (
-              <div>
-                <p className="text-xs md:text-sm text-[#6F6077] mb-1">Show Me</p>
-                <div className="flex gap-2">
-                  {userDetails.preferences.showMe.map((gender, idx) => (
-                    <span
-                      key={idx}
-                      className="px-3 py-1 rounded-full bg-white/50 text-[#2A1F2D] text-xs capitalize"
-                    >
-                      {gender}
-                    </span>
-                  ))}
+      {userDetails.preferences &&
+        (userDetails.preferences.distanceMaxKm !== undefined ||
+          userDetails.preferences.ageRange ||
+          (userDetails.preferences.showMe && userDetails.preferences.showMe.length > 0)) && (
+          <div className="glass-card rounded-2xl p-4 md:p-6">
+            <h2 className="text-lg md:text-xl font-semibold text-[#2A1F2D] mb-4">Preferences</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {userDetails.preferences.distanceMaxKm !== undefined && (
+                <div>
+                  <p className="text-xs md:text-sm text-[#6F6077] mb-1">Max Distance</p>
+                  <p className="text-sm md:text-base font-medium text-[#2A1F2D]">
+                    {userDetails.preferences.distanceMaxKm} km
+                  </p>
                 </div>
-              </div>
-            )}
+              )}
+              {userDetails.preferences.ageRange && (
+                <div>
+                  <p className="text-xs md:text-sm text-[#6F6077] mb-1">Age Range</p>
+                  <p className="text-sm md:text-base font-medium text-[#2A1F2D]">
+                    {userDetails.preferences.ageRange[0]} - {userDetails.preferences.ageRange[1]} years
+                  </p>
+                </div>
+              )}
+              {userDetails.preferences.showMe && userDetails.preferences.showMe.length > 0 && (
+                <div>
+                  <p className="text-xs md:text-sm text-[#6F6077] mb-1">Show Me</p>
+                  <div className="flex gap-2">
+                    {userDetails.preferences.showMe.map((gender, idx) => (
+                      <span
+                        key={idx}
+                        className="px-3 py-1 rounded-full bg-white/50 text-[#2A1F2D] text-xs capitalize"
+                      >
+                        {gender}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Subscription */}
       {(userDetails.subscription || (userDetails.subscriptions && userDetails.subscriptions.length > 0)) && (
@@ -528,68 +531,68 @@ export default function UserDetailPage() {
           <h2 className="text-lg md:text-xl font-semibold text-[#2A1F2D] mb-4">Subscription</h2>
           <div className="space-y-4">
             {userDetails.subscription && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs md:text-sm text-[#6F6077] mb-1">Status</p>
-                <span className={`pill ${userDetails.subscription.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"} text-xs px-3 py-1`}>
-                  {userDetails.subscription.status}
-                </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs md:text-sm text-[#6F6077] mb-1">Status</p>
+                  <span className={`pill ${userDetails.subscription.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"} text-xs px-3 py-1`}>
+                    {userDetails.subscription.status}
+                  </span>
+                </div>
+                {userDetails.subscription.plan && (
+                  <div>
+                    <p className="text-xs md:text-sm text-[#6F6077] mb-1">Plan</p>
+                    <p className="text-sm md:text-base font-medium text-[#2A1F2D] capitalize">
+                      {userDetails.subscription.plan}
+                    </p>
+                  </div>
+                )}
+                {userDetails.subscription.startDate && (
+                  <div>
+                    <p className="text-xs md:text-sm text-[#6F6077] mb-1">Start Date</p>
+                    <p className="text-sm md:text-base font-medium text-[#2A1F2D]">
+                      {formatDate(userDetails.subscription.startDate)}
+                    </p>
+                  </div>
+                )}
+                {userDetails.subscription.endDate && (
+                  <div>
+                    <p className="text-xs md:text-sm text-[#6F6077] mb-1">End Date</p>
+                    <p className="text-sm md:text-base font-medium text-[#2A1F2D]">
+                      {formatDate(userDetails.subscription.endDate)}
+                    </p>
+                  </div>
+                )}
               </div>
-              {userDetails.subscription.plan && (
-                <div>
-                  <p className="text-xs md:text-sm text-[#6F6077] mb-1">Plan</p>
-                  <p className="text-sm md:text-base font-medium text-[#2A1F2D] capitalize">
-                    {userDetails.subscription.plan}
-                  </p>
-                </div>
-              )}
-              {userDetails.subscription.startDate && (
-                <div>
-                  <p className="text-xs md:text-sm text-[#6F6077] mb-1">Start Date</p>
-                  <p className="text-sm md:text-base font-medium text-[#2A1F2D]">
-                    {formatDate(userDetails.subscription.startDate)}
-                  </p>
-                </div>
-              )}
-              {userDetails.subscription.endDate && (
-                <div>
-                  <p className="text-xs md:text-sm text-[#6F6077] mb-1">End Date</p>
-                  <p className="text-sm md:text-base font-medium text-[#2A1F2D]">
-                    {formatDate(userDetails.subscription.endDate)}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-          {userDetails.subscriptions && userDetails.subscriptions.length > 0 && (
-            <div>
-              <p className="text-xs md:text-sm font-medium text-[#6F6077] mb-2">Subscription History</p>
-              <div className="space-y-2">
-                {userDetails.subscriptions.map((sub, idx) => (
-                  <div
-                    key={idx}
-                    className="rounded-xl bg-white/50 p-3 md:p-4 border border-white/60"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <div>
-                        <p className="font-medium text-[#2A1F2D] text-sm md:text-base">
-                          {sub.plan} - {sub.status}
-                        </p>
-                        <p className="text-xs md:text-sm text-[#6F6077]">
-                          {formatDate(sub.startDate)} to {formatDate(sub.endDate)}
-                        </p>
+            )}
+            {userDetails.subscriptions && userDetails.subscriptions.length > 0 && (
+              <div>
+                <p className="text-xs md:text-sm font-medium text-[#6F6077] mb-2">Subscription History</p>
+                <div className="space-y-2">
+                  {userDetails.subscriptions.map((sub, idx) => (
+                    <div
+                      key={idx}
+                      className="rounded-xl bg-white/50 p-3 md:p-4 border border-white/60"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div>
+                          <p className="font-medium text-[#2A1F2D] text-sm md:text-base">
+                            {sub.plan} - {sub.status}
+                          </p>
+                          <p className="text-xs md:text-sm text-[#6F6077]">
+                            {formatDate(sub.startDate)} to {formatDate(sub.endDate)}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-          {(!userDetails.subscription && (!userDetails.subscriptions || userDetails.subscriptions.length === 0)) && (
-            <p className="text-sm text-[#6F6077]">No subscription information available</p>
-          )}
+            )}
+            {(!userDetails.subscription && (!userDetails.subscriptions || userDetails.subscriptions.length === 0)) && (
+              <p className="text-sm text-[#6F6077]">No subscription information available</p>
+            )}
+          </div>
         </div>
-      </div>
       )}
 
       {/* Account Information */}
@@ -734,7 +737,7 @@ export default function UserDetailPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            
+
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 md:p-6">
               {selectedPhoto.type === "video" ? (
                 <video
@@ -753,7 +756,7 @@ export default function UserDetailPage() {
                   onClick={(e) => e.stopPropagation()}
                 />
               )}
-              
+
               <div className="mt-4 flex items-center justify-between text-white">
                 <div>
                   {selectedPhoto.isPrimary && (
