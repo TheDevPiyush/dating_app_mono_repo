@@ -9,6 +9,7 @@ import { RTCView, MediaStream } from 'react-native-webrtc';
 import { CallSwipeControl } from './CallSwipeControl';
 import { BlurView } from 'expo-blur';
 import { useAuthStore } from '@/store/authStore';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface VideoCallUIProps {
   visible: boolean;
@@ -55,14 +56,15 @@ export const VideoCallUI: React.FC<VideoCallUIProps> = ({
   isExploreCall = false,
   remainingBalance = null,
 }) => {
+  const insets = useSafeAreaInsets();
   const { dbUser } = useAuthStore();
   const [showControls, setShowControls] = useState(true);
   const [callSeconds, setCallSeconds] = useState(0);
   const callStartRef = useRef<number | null>(null);
   const swipeY = useRef(new Animated.Value(0)).current;
   const chevronPulse = useRef(new Animated.Value(0)).current;
+  const isPreConnect = !isConnected;
   const isIncomingPreConnect = !isConnected && (isIncoming || (!!onAnswer && isRinging));
-  const isOutgoingPreConnect = !isConnected && !isIncomingPreConnect;
   const localName =
     `${dbUser?.profile?.firstName || ''} ${dbUser?.profile?.lastName || ''}`.trim() ||
     dbUser?.displayName ||
@@ -103,7 +105,7 @@ export const VideoCallUI: React.FC<VideoCallUIProps> = ({
   }, [isConnected]);
 
   useEffect(() => {
-    if (!isOutgoingPreConnect) return;
+    if (!isPreConnect) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(chevronPulse, { toValue: 1, duration: 700, useNativeDriver: true }),
@@ -112,19 +114,31 @@ export const VideoCallUI: React.FC<VideoCallUIProps> = ({
     );
     loop.start();
     return () => loop.stop();
-  }, [chevronPulse, isOutgoingPreConnect]);
+  }, [chevronPulse, isPreConnect]);
 
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => isOutgoingPreConnect,
-        onMoveShouldSetPanResponder: (_, g) => isOutgoingPreConnect && g.dy > 4,
+        onStartShouldSetPanResponder: () => isPreConnect,
+        onMoveShouldSetPanResponder: (_, g) => isPreConnect && Math.abs(g.dy) > 4,
         onPanResponderMove: (_, g) => {
-          swipeY.setValue(Math.max(0, g.dy));
+          const clamped = isIncomingPreConnect
+            ? Math.max(-130, Math.min(130, g.dy))
+            : Math.max(0, g.dy);
+          swipeY.setValue(clamped);
         },
         onPanResponderRelease: (_, g) => {
+          if (isIncomingPreConnect && g.dy < -90) {
+            onAnswer?.();
+            swipeY.setValue(0);
+            return;
+          }
           if (g.dy > 90) {
-            onEnd?.();
+            if (isIncomingPreConnect) {
+              onReject?.();
+            } else {
+              onEnd?.();
+            }
             swipeY.setValue(0);
             return;
           }
@@ -135,7 +149,7 @@ export const VideoCallUI: React.FC<VideoCallUIProps> = ({
           }).start();
         },
       }),
-    [isOutgoingPreConnect, onEnd, swipeY],
+    [isIncomingPreConnect, isPreConnect, onAnswer, onEnd, onReject, swipeY],
   );
 
   const callTimerText = useMemo(() => {
@@ -166,8 +180,16 @@ export const VideoCallUI: React.FC<VideoCallUIProps> = ({
         style={styles.container}
       >
         <View style={styles.content}>
-          {isOutgoingPreConnect ? (
-            <View style={styles.outgoingContainer}>
+          {isPreConnect ? (
+            <View
+              style={[
+                styles.outgoingContainer,
+                { paddingTop: Math.max(insets.top + 96, 120) },
+              ]}
+            >
+              <ThemedText type="title" style={[styles.appTitle, { top: Math.max(insets.top + 8, 18) }]}>
+                Pookiey
+              </ThemedText>
               <View style={styles.partyBlock}>
                 <View style={styles.outgoingAvatarCircle}>
                   {userAvatar ? (
@@ -194,6 +216,12 @@ export const VideoCallUI: React.FC<VideoCallUIProps> = ({
                     },
                   ]}
                 >
+                  {isIncomingPreConnect && (
+                    <>
+                      <Ionicons name="chevron-up" size={22} color="rgba(255,255,255,0.2)" />
+                      <Ionicons name="chevron-up" size={22} color="rgba(255,255,255,0.3)" />
+                    </>
+                  )}
                   <Ionicons name="chevron-down" size={24} color="rgba(255,255,255,0.25)" />
                   <Ionicons name="chevron-down" size={24} color="rgba(255,255,255,0.35)" />
                   <Ionicons name="chevron-down" size={24} color="rgba(255,255,255,0.5)" />
@@ -205,7 +233,11 @@ export const VideoCallUI: React.FC<VideoCallUIProps> = ({
                 >
                   <Ionicons name="videocam" size={24} color={Colors.primary.white} />
                 </Animated.View>
-                <ThemedText style={styles.swipeHint}>Swipe down to cancel</ThemedText>
+                <ThemedText style={styles.swipeHint}>
+                  {isIncomingPreConnect
+                    ? 'Swipe up to answer or down to decline'
+                    : 'Swipe down to cancel'}
+                </ThemedText>
               </View>
 
               <View style={styles.partyBlock}>
@@ -533,6 +565,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 48,
     paddingBottom: 36,
+  },
+  appTitle: {
+    position: 'absolute',
+    alignSelf: 'center',
+    color: Colors.primary.white,
+    fontSize: 30,
   },
   partyBlock: { alignItems: 'center' },
   outgoingAvatarCircle: {
