@@ -96,6 +96,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const [exploreCallName, setExploreCallName] = useState<string>('');
   const [exploreCallAvatar, setExploreCallAvatar] = useState<string | undefined>(undefined);
   const [exploreCallType, setExploreCallType] = useState<'voice' | 'video'>('voice');
+  const [voiceCallInitiated, setVoiceCallInitiated] = useState(false);
+  const [videoCallInitiated, setVideoCallInitiated] = useState(false);
   const [voicePeerName, setVoicePeerName] = useState<string>('User');
   const [voicePeerAvatar, setVoicePeerAvatar] = useState<string | undefined>(undefined);
   const [videoPeerName, setVideoPeerName] = useState<string>('User');
@@ -127,6 +129,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!incomingCall) return;
+    setVoiceCallInitiated(false);
     const peer = resolvePeerFromInbox(
       incomingCall.matchId,
       incomingCall.callerId,
@@ -138,6 +141,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!incomingVideoCall) return;
+    setVideoCallInitiated(false);
     const peer = resolvePeerFromInbox(
       incomingVideoCall.matchId,
       incomingVideoCall.callerId,
@@ -247,6 +251,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       const peer = resolvePeerFromInbox(matchId, receiverId, receiverIdentity);
       setVoicePeerName(peer.name);
       setVoicePeerAvatar(peer.avatar);
+      setVoiceCallInitiated(true);
       await makeCall(matchId, receiverId, receiverIdentity);
     },
     [makeCall, resolvePeerFromInbox],
@@ -257,10 +262,37 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       const peer = resolvePeerFromInbox(matchId, receiverId, receiverIdentity);
       setVideoPeerName(peer.name);
       setVideoPeerAvatar(peer.avatar);
+      setVideoCallInitiated(true);
       await makeVideoCall(matchId, receiverId, receiverIdentity);
     },
     [makeVideoCall, resolvePeerFromInbox],
   );
+
+  useEffect(() => {
+    if (callStatus.isEnded) {
+      setVoiceCallInitiated(false);
+    }
+  }, [callStatus.isEnded]);
+
+  useEffect(() => {
+    if (videoStatus === 'idle') {
+      setVideoCallInitiated(false);
+    }
+  }, [videoStatus]);
+
+  const shouldShowVoiceUI =
+    !!incomingCall ||
+    voiceCallInitiated ||
+    callStatus.isCalling ||
+    callStatus.isConnecting ||
+    callStatus.isConnected;
+
+  const shouldShowVideoUI =
+    !!incomingVideoCall ||
+    videoCallInitiated ||
+    videoStatus === 'calling' ||
+    videoStatus === 'connecting' ||
+    videoStatus === 'connected';
 
   // -----------------------------
   // Ringtone logic
@@ -396,7 +428,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       {children}
 
       <VoiceCallUI
-        visible={!callStatus.isEnded}
+        visible={shouldShowVoiceUI}
         isIncoming={!!incomingCall}
         isConnected={callStatus.isConnected}
         isRinging={callStatus.isRinging}
@@ -413,7 +445,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       />
 
       <VideoCallUI
-        visible={videoStatus !== 'idle'}
+        visible={shouldShowVideoUI}
         isIncoming={!!incomingVideoCall}
         isConnected={videoStatus === 'connected'}
         isRinging={videoStatus === 'ringing'}
