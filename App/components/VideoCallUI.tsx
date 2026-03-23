@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Modal, Pressable, Animated, PanResponder } from 'react-native';
 import { ThemedText } from './ThemedText';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
@@ -8,6 +8,7 @@ import { Image } from 'expo-image';
 import { RTCView, MediaStream } from 'react-native-webrtc';
 import { CallSwipeControl } from './CallSwipeControl';
 import { BlurView } from 'expo-blur';
+import { useAuthStore } from '@/store/authStore';
 
 interface VideoCallUIProps {
   visible: boolean;
@@ -54,9 +55,19 @@ export const VideoCallUI: React.FC<VideoCallUIProps> = ({
   isExploreCall = false,
   remainingBalance = null,
 }) => {
+  const { dbUser } = useAuthStore();
   const [showControls, setShowControls] = useState(true);
   const [callSeconds, setCallSeconds] = useState(0);
   const callStartRef = useRef<number | null>(null);
+  const swipeY = useRef(new Animated.Value(0)).current;
+  const chevronPulse = useRef(new Animated.Value(0)).current;
+  const isIncomingPreConnect = !isConnected && (isIncoming || (!!onAnswer && isRinging));
+  const isOutgoingPreConnect = !isConnected && !isIncomingPreConnect;
+  const localName =
+    `${dbUser?.profile?.firstName || ''} ${dbUser?.profile?.lastName || ''}`.trim() ||
+    dbUser?.displayName ||
+    'You';
+  const localAvatar = dbUser?.photoURL || undefined;
 
   const statusText = isConnected
     ? 'Connected'
@@ -91,6 +102,42 @@ export const VideoCallUI: React.FC<VideoCallUIProps> = ({
     }
   }, [isConnected]);
 
+  useEffect(() => {
+    if (!isOutgoingPreConnect) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(chevronPulse, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(chevronPulse, { toValue: 0, duration: 700, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [chevronPulse, isOutgoingPreConnect]);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => isOutgoingPreConnect,
+        onMoveShouldSetPanResponder: (_, g) => isOutgoingPreConnect && g.dy > 4,
+        onPanResponderMove: (_, g) => {
+          swipeY.setValue(Math.max(0, g.dy));
+        },
+        onPanResponderRelease: (_, g) => {
+          if (g.dy > 90) {
+            onEnd?.();
+            swipeY.setValue(0);
+            return;
+          }
+          Animated.spring(swipeY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 6,
+          }).start();
+        },
+      }),
+    [isOutgoingPreConnect, onEnd, swipeY],
+  );
+
   const callTimerText = useMemo(() => {
     const minutes = Math.floor(callSeconds / 60)
       .toString()
@@ -106,7 +153,7 @@ export const VideoCallUI: React.FC<VideoCallUIProps> = ({
       animationType="fade"
       statusBarTranslucent
       onRequestClose={() => {
-        if (isIncoming && !isConnected) {
+        if (isIncomingPreConnect) {
           onReject?.();
         } else {
           onEnd?.();
@@ -119,6 +166,65 @@ export const VideoCallUI: React.FC<VideoCallUIProps> = ({
         style={styles.container}
       >
         <View style={styles.content}>
+          {isOutgoingPreConnect ? (
+            <View style={styles.outgoingContainer}>
+              <View style={styles.partyBlock}>
+                <View style={styles.outgoingAvatarCircle}>
+                  {userAvatar ? (
+                    <Image source={{ uri: userAvatar }} style={styles.outgoingAvatarImage} contentFit="cover" />
+                  ) : (
+                    <ThemedText style={styles.avatarText}>
+                      {userName?.trim()?.charAt(0)?.toUpperCase() || 'U'}
+                    </ThemedText>
+                  )}
+                </View>
+                <ThemedText type="defaultSemiBold" style={styles.outgoingName}>
+                  {userName}
+                </ThemedText>
+                <ThemedText style={styles.outgoingStatus}>{statusText}</ThemedText>
+              </View>
+
+              <View style={styles.swipeCenter}>
+                <Animated.View
+                  style={[
+                    styles.chevrons,
+                    {
+                      opacity: chevronPulse.interpolate({ inputRange: [0, 1], outputRange: [0.2, 1] }),
+                      transform: [{ translateY: chevronPulse.interpolate({ inputRange: [0, 1], outputRange: [0, 6] }) }],
+                    },
+                  ]}
+                >
+                  <Ionicons name="chevron-down" size={24} color="rgba(255,255,255,0.25)" />
+                  <Ionicons name="chevron-down" size={24} color="rgba(255,255,255,0.35)" />
+                  <Ionicons name="chevron-down" size={24} color="rgba(255,255,255,0.5)" />
+                </Animated.View>
+
+                <Animated.View
+                  {...panResponder.panHandlers}
+                  style={[styles.fab, styles.fabCallBlue, { transform: [{ translateY: swipeY }] }]}
+                >
+                  <Ionicons name="videocam" size={24} color={Colors.primary.white} />
+                </Animated.View>
+                <ThemedText style={styles.swipeHint}>Swipe down to cancel</ThemedText>
+              </View>
+
+              <View style={styles.partyBlock}>
+                <View style={styles.outgoingAvatarCircle}>
+                  {localAvatar ? (
+                    <Image source={{ uri: localAvatar }} style={styles.outgoingAvatarImage} contentFit="cover" />
+                  ) : (
+                    <ThemedText style={styles.avatarText}>
+                      {localName?.trim()?.charAt(0)?.toUpperCase() || 'Y'}
+                    </ThemedText>
+                  )}
+                </View>
+                <ThemedText type="defaultSemiBold" style={styles.outgoingName}>
+                  {localName}
+                </ThemedText>
+              </View>
+            </View>
+          ) : (
+            <>
           {/* Video area: remote (large) + local (pip) when connected */}
           <Pressable
             style={styles.videoArea}
@@ -214,7 +320,7 @@ export const VideoCallUI: React.FC<VideoCallUIProps> = ({
               ) : (
                 <View style={styles.overlayFallback} />
               )}
-              {isIncoming && !isConnected && !isConnecting ? (
+              {isIncomingPreConnect && !isConnecting ? (
                 <CallSwipeControl
                   onAnswer={onAnswer || (() => { })}
                   onReject={onReject || (() => { })}
@@ -254,6 +360,8 @@ export const VideoCallUI: React.FC<VideoCallUIProps> = ({
                 </View>
               )}
             </View>
+          )}
+            </>
           )}
         </View>
       </LinearGradient>
@@ -418,4 +526,50 @@ const styles = StyleSheet.create({
   fabAnswer: { backgroundColor: '#22C55E' },
   fabReject: { backgroundColor: '#EF4444' },
   fabEnd: { backgroundColor: '#EF4444', transform: [{ rotate: '135deg' }] },
+  fabCallBlue: { backgroundColor: '#3B82F6' },
+  outgoingContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 48,
+    paddingBottom: 36,
+  },
+  partyBlock: { alignItems: 'center' },
+  outgoingAvatarCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  outgoingAvatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  outgoingName: {
+    marginTop: 10,
+    fontSize: 28,
+    color: Colors.primary.white,
+  },
+  outgoingStatus: {
+    marginTop: 6,
+    color: '#22C55E',
+    fontSize: 20,
+  },
+  swipeCenter: {
+    alignItems: 'center',
+    gap: 10,
+  },
+  chevrons: {
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  swipeHint: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
+  },
 });

@@ -85,7 +85,7 @@ export default function ChatRoom() {
   // Check if user has active subscription with premium or super plan
   const isPremium =
     dbUser?.subscription?.status === 'active' &&
-    (dbUser?.subscription?.plan === 'premium' || dbUser?.subscription?.plan === 'super');
+    (dbUser?.subscription?.plan === 'premium' || dbUser?.subscription?.plan === 'super' || dbUser?.subscription?.plan === 'basic' );
 
   const [imageError, setImageError] = useState(false);
   const [dialogVisible, setDialogVisible] = useState(false);

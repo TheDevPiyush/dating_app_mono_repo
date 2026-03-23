@@ -94,15 +94,58 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   } = useExploreWebRTC();
 
   const [exploreCallName, setExploreCallName] = useState<string>('');
+  const [exploreCallAvatar, setExploreCallAvatar] = useState<string | undefined>(undefined);
   const [exploreCallType, setExploreCallType] = useState<'voice' | 'video'>('voice');
+  const [voicePeerName, setVoicePeerName] = useState<string>('User');
+  const [voicePeerAvatar, setVoicePeerAvatar] = useState<string | undefined>(undefined);
+  const [videoPeerName, setVideoPeerName] = useState<string>('User');
+  const [videoPeerAvatar, setVideoPeerAvatar] = useState<string | undefined>(undefined);
+
+  const resolvePeerFromInbox = useCallback(
+    (matchId?: string, peerId?: string, fallback?: string) => {
+      const matched = inbox.find(
+        (item) =>
+          (!matchId || item.matchId === matchId) &&
+          (!peerId || item.userId === peerId),
+      );
+      return {
+        name: matched?.name || fallback || 'User',
+        avatar: matched?.avatar || undefined,
+      };
+    },
+    [inbox],
+  );
 
   // When an incoming explore call arrives, set the caller's name for the UI
   useEffect(() => {
     if (incomingExploreCall) {
       setExploreCallName(incomingExploreCall.callerName || 'User');
+      setExploreCallAvatar(incomingExploreCall.callerAvatar || undefined);
       setExploreCallType(incomingExploreCall.callType);
     }
   }, [incomingExploreCall]);
+
+  useEffect(() => {
+    if (!incomingCall) return;
+    const peer = resolvePeerFromInbox(
+      incomingCall.matchId,
+      incomingCall.callerId,
+      incomingCall.callerIdentity,
+    );
+    setVoicePeerName(peer.name);
+    setVoicePeerAvatar(peer.avatar);
+  }, [incomingCall, resolvePeerFromInbox]);
+
+  useEffect(() => {
+    if (!incomingVideoCall) return;
+    const peer = resolvePeerFromInbox(
+      incomingVideoCall.matchId,
+      incomingVideoCall.callerId,
+      incomingVideoCall.callerIdentity,
+    );
+    setVideoPeerName(peer.name);
+    setVideoPeerAvatar(peer.avatar);
+  }, [incomingVideoCall, resolvePeerFromInbox]);
 
   // Update wallet balance when explore tick comes in
   useEffect(() => {
@@ -183,6 +226,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
   const makeExploreCallFn = useCallback(async (employeeUserId: string, employeeName: string) => {
     setExploreCallName(employeeName);
+    setExploreCallAvatar(undefined);
     setExploreCallType('voice');
     try {
       await initiateExploreCall({ employeeUserId, callType: 'voice' });
@@ -191,11 +235,32 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
   const makeExploreVideoCallFn = useCallback(async (employeeUserId: string, employeeName: string) => {
     setExploreCallName(employeeName);
+    setExploreCallAvatar(undefined);
     setExploreCallType('video');
     try {
       await initiateExploreCall({ employeeUserId, callType: 'video' });
     } catch {}
   }, [initiateExploreCall]);
+
+  const makeCallFn = useCallback(
+    async (matchId: string, receiverId: string, receiverIdentity: string) => {
+      const peer = resolvePeerFromInbox(matchId, receiverId, receiverIdentity);
+      setVoicePeerName(peer.name);
+      setVoicePeerAvatar(peer.avatar);
+      await makeCall(matchId, receiverId, receiverIdentity);
+    },
+    [makeCall, resolvePeerFromInbox],
+  );
+
+  const makeVideoCallFn = useCallback(
+    async (matchId: string, receiverId: string, receiverIdentity: string) => {
+      const peer = resolvePeerFromInbox(matchId, receiverId, receiverIdentity);
+      setVideoPeerName(peer.name);
+      setVideoPeerAvatar(peer.avatar);
+      await makeVideoCall(matchId, receiverId, receiverIdentity);
+    },
+    [makeVideoCall, resolvePeerFromInbox],
+  );
 
   // -----------------------------
   // Ringtone logic
@@ -294,8 +359,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   // -----------------------------
   const ctx = useMemo<CallContextValue>(
     () => ({
-      makeCall,
-      makeVideoCall,
+      makeCall: makeCallFn,
+      makeVideoCall: makeVideoCallFn,
       makeExploreCall: makeExploreCallFn,
       makeExploreVideoCall: makeExploreVideoCallFn,
       answerCall,
@@ -310,8 +375,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       incomingCall,
     }),
     [
-      makeCall,
-      makeVideoCall,
+      makeCallFn,
+      makeVideoCallFn,
       makeExploreCallFn,
       makeExploreVideoCallFn,
       answerCall,
@@ -336,7 +401,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         isConnected={callStatus.isConnected}
         isRinging={callStatus.isRinging}
         isConnecting={callStatus.isConnecting}
-        userName="User"
+        userName={voicePeerName}
+        userAvatar={voicePeerAvatar}
         isMuted={isMuted}
         onToggleMute={toggleMute}
         isSpeakerOn={isSpeakerOn}
@@ -352,7 +418,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         isConnected={videoStatus === 'connected'}
         isRinging={videoStatus === 'ringing'}
         isConnecting={videoStatus === 'connecting'}
-        userName="User"
+        userName={videoPeerName}
+        userAvatar={videoPeerAvatar}
         isMuted={videoIsMuted}
         isVideoEnabled={isVideoEnabled}
         onToggleMute={toggleVideoMute}
@@ -375,6 +442,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           isRinging={exploreStatus === 'ringing'}
           isConnecting={exploreStatus === 'connecting'}
           userName={exploreCallName || 'Employee'}
+          userAvatar={exploreCallAvatar}
           isMuted={exploreIsMuted}
           isSpeakerOn={isSpeakerOn}
           onToggleMute={toggleExploreMute}
@@ -396,6 +464,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           isRinging={exploreStatus === 'ringing'}
           isConnecting={exploreStatus === 'connecting'}
           userName={exploreCallName || 'Employee'}
+          userAvatar={exploreCallAvatar}
           isMuted={exploreIsMuted}
           isVideoEnabled={exploreVideoEnabled}
           onToggleMute={toggleExploreMute}
