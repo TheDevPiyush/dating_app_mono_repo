@@ -1,12 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 import { useAuth } from '@/hooks/useAuth';
+import { useUser } from '@/hooks/useUser';
 import { subscriptionAPI, SubscriptionData } from '@/APIs/subscriptionAPIs';
 import { Colors } from '@/constants/Colors';
+import CustomDialog, { DialogType } from '@/components/CustomDialog';
+import { ThemedText } from '@/components/ThemedText';
+import CustomBackButton from '@/components/CustomBackButton';
 
 function formatDate(date: Date | string | undefined) {
   if (!date) return 'N/A';
@@ -16,11 +20,51 @@ function formatDate(date: Date | string | undefined) {
 }
 
 export default function SubscriptionCancelScreen() {
-  const { token } = useAuth();
+  const { token, setDBUser } = useAuth();
+  const { getUser } = useUser();
 
   const [currentSub, setCurrentSub] = useState<SubscriptionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [dialogType, setDialogType] = useState<DialogType>('info');
+  const [dialogTitle, setDialogTitle] = useState('');
+  const [dialogMessage, setDialogMessage] = useState('');
+  const [dialogPrimaryButton, setDialogPrimaryButton] = useState<{
+    text: string;
+    onPress: () => void;
+  }>({ text: 'OK', onPress: () => setDialogVisible(false) });
+  const [dialogCancelButton, setDialogCancelButton] = useState<
+    { text: string; onPress: () => void } | undefined
+  >(undefined);
+
+  const showDialog = (
+    type: DialogType,
+    message: string,
+    title?: string,
+    primaryButton?: { text: string; onPress: () => void },
+    cancelButton?: { text: string; onPress: () => void },
+  ) => {
+    setDialogType(type);
+    setDialogTitle(title ?? '');
+    setDialogMessage(message);
+    setDialogPrimaryButton(primaryButton ?? { text: 'OK', onPress: () => setDialogVisible(false) });
+    setDialogCancelButton(cancelButton);
+    setDialogVisible(true);
+  };
+
+  const refetchProfile = useCallback(async () => {
+    if (!token) return;
+    try {
+      const profile = await getUser(token);
+      const nextDbUser = profile?.data?.user ?? profile?.data ?? profile?.user ?? profile;
+      if (nextDbUser) {
+        setDBUser(nextDbUser);
+      }
+    } catch (err) {
+      console.error('Profile refetch failed after cancellation', err);
+    }
+  }, [getUser, setDBUser, token]);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -29,7 +73,7 @@ export default function SubscriptionCancelScreen() {
       const sub = await subscriptionAPI.getCurrentSubscription(token);
       setCurrentSub(sub);
     } catch (err: any) {
-      Alert.alert('Error', err?.message ?? 'Could not load subscription info.');
+      showDialog('error', err?.message ?? 'Could not load subscription info.', 'Error');
     } finally {
       setLoading(false);
     }
@@ -47,28 +91,34 @@ export default function SubscriptionCancelScreen() {
   const handleCancel = () => {
     if (!token) return;
 
-    Alert.alert(
-      'Cancel Subscription',
+    showDialog(
+      'warning',
       'Your subscription will remain active until the current billing period ends. Continue?',
-      [
-        { text: 'Keep', style: 'cancel' },
-        {
-          text: 'Cancel Subscription',
-          style: 'destructive',
-          onPress: async () => {
-            setCancelling(true);
-            try {
-              await subscriptionAPI.cancelSubscription(token);
-              Alert.alert('Cancelled', 'Auto-renewal has been turned off.');
-              router.back();
-            } catch (err: any) {
-              Alert.alert('Error', err?.message ?? 'Could not cancel subscription.');
-            } finally {
-              setCancelling(false);
-            }
-          },
+      'Cancel Subscription',
+      {
+        text: 'Cancel Subscription',
+        onPress: async () => {
+          setDialogVisible(false);
+          setCancelling(true);
+          try {
+            await subscriptionAPI.cancelSubscription(token);
+            await refetchProfile();
+            showDialog('success', 'Auto-renewal has been turned off.', 'Cancelled', {
+              text: 'OK',
+              onPress: () => {
+                setDialogVisible(false);
+                router.back();
+              },
+            });
+            await load();
+          } catch (err: any) {
+            showDialog('error', err?.message ?? 'Could not cancel subscription.', 'Error');
+          } finally {
+            setCancelling(false);
+          }
         },
-      ],
+      },
+      { text: 'Keep', onPress: () => setDialogVisible(false) },
     );
   };
 
@@ -81,48 +131,60 @@ export default function SubscriptionCancelScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Ionicons name="close-circle-outline" size={24} color={Colors.primary.red} />
-          <Text style={styles.title}>Cancel Subscription</Text>
-        </View>
+    <>
+      <CustomDialog
+        visible={dialogVisible}
+        type={dialogType}
+        title={dialogTitle}
+        message={dialogMessage}
+        onDismiss={() => setDialogVisible(false)}
+        primaryButton={dialogPrimaryButton}
+        cancelButton={dialogCancelButton}
+      />
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <CustomBackButton />
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          <View style={styles.header}>
+            <Ionicons name="close-circle-outline" size={24} color={Colors.primary.red} />
+            <ThemedText type="title" style={styles.title}>Cancel Subscription</ThemedText>
+          </View>
 
-        <View style={styles.card}>
-          {isActive ? (
-            <>
-              <Text style={styles.label}>Plan: {planTitle?.toUpperCase()}</Text>
-              <Text style={styles.value}>
-                Active until: {endDateText}
-              </Text>
-              {currentSub?.autoRenew === false && (
-                <Text style={styles.pendingText}>Cancellation Pending</Text>
-              )}
-            </>
-          ) : (
-            <>
-              <Text style={styles.label}>No active subscription found</Text>
-              <Text style={styles.value}>You can subscribe again from the subscription screen.</Text>
-            </>
-          )}
-        </View>
+          <View style={styles.card}>
+            {isActive ? (
+              <>
+                <ThemedText style={styles.label}>Plan: {planTitle?.toUpperCase()}</ThemedText>
+                <ThemedText type="defaultSemiBold" style={styles.value}>
+                  Active until: {endDateText}
+                </ThemedText>
+                {currentSub?.autoRenew === false && (
+                  <ThemedText type="defaultSemiBold" style={styles.pendingText}>Your subscription will remain active until the current billing period ends.</ThemedText>
+                )}
+              </>
+            ) : (
+              <>
+                <ThemedText style={styles.label}>No active subscription found</ThemedText>
+                <ThemedText style={styles.value}>You can subscribe again from the subscription screen.</ThemedText>
+              </>
+            )}
+          </View>
 
-        <TouchableOpacity
-          style={[styles.cancelButton, !canCancel && styles.cancelButtonDisabled]}
-          onPress={handleCancel}
-          disabled={!canCancel || cancelling}
-          activeOpacity={0.8}
-        >
-          {cancelling ? (
-            <ActivityIndicator color={Colors.text.secondary} />
-          ) : (
-            <Text style={styles.cancelButtonText}>
-              {canCancel ? 'Cancel Subscription' : 'Cancellation Unavailable'}
-            </Text>
-          )}
-        </TouchableOpacity>
-      </ScrollView>
-    </SafeAreaView>
+          <TouchableOpacity
+            style={[styles.cancelButton, !canCancel && styles.cancelButtonDisabled]}
+            onPress={handleCancel}
+            disabled={!canCancel || cancelling}
+            activeOpacity={0.8}
+          >
+            {cancelling ? (
+              <ActivityIndicator color={Colors.text.secondary} />
+            ) : (
+              <ThemedText type="defaultSemiBold" style={styles.cancelButtonText}>
+                {canCancel ? 'Cancel Subscription' : 'Cancellation Unavailable'}
+              </ThemedText>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    </>
   );
 }
 
@@ -144,11 +206,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 4,
   },
   title: {
     fontSize: 20,
-    fontWeight: '800',
     color: Colors.titleColor,
   },
   card: {
@@ -164,14 +224,12 @@ const styles = StyleSheet.create({
   },
   value: {
     fontSize: 16,
-    fontWeight: '700',
     color: Colors.titleColor,
     marginTop: 6,
   },
   pendingText: {
     marginTop: 10,
     fontSize: 13,
-    fontWeight: '600',
     color: '#f59e0b',
   },
   cancelButton: {
@@ -187,7 +245,6 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '800',
   },
 });
 

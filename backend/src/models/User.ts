@@ -77,6 +77,7 @@ export interface IUserSubscriptionSnapshot {
 
 export interface IPookieyGirlEmployeeDetails {
     isGirlEmployee: boolean;
+    employeLocation?: string | null,
     workingHourStart?: Date | null;
     workingHourEnd?: Date | null;
     isAvailableForCall?: boolean;
@@ -180,6 +181,7 @@ const UserSchema = new Schema<IUser>(
         },
         girlEmployDetails: {
             isGirlEmployee: { type: Boolean, default: false },
+            employeLocation: { type: String, default: null },
             workingHourEnd: { type: Date, default: null },
             workingHourStart: { type: Date, default: null },
             workingDateStart: { type: Date, default: null },

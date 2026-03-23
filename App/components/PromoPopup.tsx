@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import {
   Modal,
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
@@ -12,6 +11,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCall } from '@/context/CallContext';
 import { Colors } from '@/constants/Colors';
 import { router } from 'expo-router';
+import { ThemedText } from '@/components/ThemedText';
 
 const INITIAL_DELAY_MS = 4_000;
 const SECOND_POPUP_DELAY_MS = 3 * 60 * 1_000;
@@ -130,27 +130,27 @@ export default function PromoPopup() {
               size={48}
               color={Colors.primaryBackgroundColor}
             />
-            <Text style={styles.title}>
+            <ThemedText type="title" style={styles.title}>
               {isSubscription ? 'Go Premium' : 'Top Up Minutes'}
-            </Text>
-            <Text style={styles.subtitle}>
+            </ThemedText>
+            <ThemedText style={styles.subtitle}>
               {isSubscription
                 ? 'Unlock unlimited swipes, voice calling and more with a Pookiey subscription.'
                 : 'Running low on talk time? Grab a minutes pack and keep the conversations going.'}
-            </Text>
+            </ThemedText>
 
             <TouchableOpacity
               style={styles.actionButton}
               onPress={handleAction}
               activeOpacity={0.8}
             >
-              <Text style={styles.actionButtonText}>
+              <ThemedText type="defaultSemiBold" style={styles.actionButtonText}>
                 {isSubscription ? 'View Plans' : 'Buy Minutes'}
-              </Text>
+              </ThemedText>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={handleDismiss}>
-              <Text style={styles.laterText}>Maybe later</Text>
+              <ThemedText style={styles.laterText}>Maybe later</ThemedText>
             </TouchableOpacity>
           </View>
         </View>
@@ -200,7 +200,6 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: '800',
     color: Colors.titleColor,
     textAlign: 'center',
   },
@@ -219,7 +218,6 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontSize: 16,
-    fontWeight: '700',
     color: '#fff',
   },
   laterText: {

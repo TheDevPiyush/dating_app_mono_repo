@@ -83,50 +83,64 @@ export default function ExploreScreen() {
         return primary?.url || employee.profile?.photos?.[0]?.url || employee.photoURL || '';
     };
 
-    const renderEmployee = ({ item }: { item: ExploreEmployee }) => (
-        <TouchableOpacity
-            style={styles.row}
-            activeOpacity={0.8}
-            onPress={() => router.push({ pathname: '/(home)/employeeProfile' as any, params: { employeeId: item.user_id } })}
-        >
-            <View style={styles.avatarContainer}>
-                <Image
-                    source={{ uri: getEmployeePhoto(item) }}
-                    style={styles.avatar}
-                />
-                <View style={[styles.statusDot, item.isOnline ? styles.online : styles.offline]} />
-            </View>
+    const getEmployeeLocation = (employee: ExploreEmployee) => {
+        return employee.girlEmployDetails?.employeLocation?.trim() || '';
+    };
 
-            <View style={styles.info}>
-                <ThemedText type="defaultSemiBold" style={styles.name} numberOfLines={1}>
-                    {item.profile?.firstName || item.displayName || 'Employee'}
-                </ThemedText>
+    const renderEmployee = ({ item }: { item: ExploreEmployee }) => {
+        const callAvailability = item.girlEmployDetails;
+        const showCallButtons = !!callAvailability?.isAvailableForCall;
+        const audioEnabled = !!callAvailability?.isAudioCallAllowed && !!item.isOnline;
+        const videoEnabled = !!callAvailability?.isVideoCallAllowed && !!item.isOnline;
 
-                <ThemedText style={styles.statusLabel}>
-                    {item.isOnline ? 'Online' : 'Offline'}
-                </ThemedText>
-            </View>
+        return (
+            <TouchableOpacity
+                style={styles.row}
+                activeOpacity={0.8}
+                onPress={() => router.push({ pathname: '/(home)/employeeProfile' as any, params: { employeeId: item.user_id } })}
+            >
+                <View style={styles.avatarContainer}>
+                    <Image
+                        source={{ uri: getEmployeePhoto(item) }}
+                        style={styles.avatar}
+                    />
+                    <View style={[styles.statusDot, item.isOnline ? styles.online : styles.offline]} />
+                </View>
 
-            <View style={styles.callButtons}>
-                <TouchableOpacity
-                    style={[styles.callBtn, !item.isOnline && styles.callBtnDisabled]}
-                    onPress={() => handleVoiceCall(item)}
-                    disabled={!item.isOnline}
-                    activeOpacity={0.7}
-                >
-                    <Phone size={18} color={item.isOnline ? Colors.primaryBackgroundColor : Colors.text.tertiary} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.callBtn, !item.isOnline && styles.callBtnDisabled]}
-                    onPress={() => handleVideoCall(item)}
-                    disabled={!item.isOnline}
-                    activeOpacity={0.7}
-                >
-                    <Video size={18} color={item.isOnline ? Colors.primaryBackgroundColor : Colors.text.tertiary} />
-                </TouchableOpacity>
-            </View>
-        </TouchableOpacity>
-    );
+                <View style={styles.info}>
+                    <ThemedText type="defaultSemiBold" style={styles.name} numberOfLines={1}>
+                        {item.profile?.firstName || item.displayName || 'Employee'}
+                    </ThemedText>
+
+                    <ThemedText style={styles.statusLabel}>
+                        {item.isOnline ? 'Online' : 'Offline'} {getEmployeeLocation(item) && ` • ${getEmployeeLocation(item)}`}
+                    </ThemedText>
+
+                </View>
+
+                {showCallButtons && (
+                    <View style={styles.callButtons}>
+                        <TouchableOpacity
+                            style={[styles.callBtn, !audioEnabled && styles.callBtnDisabled]}
+                            onPress={() => handleVoiceCall(item)}
+                            disabled={!audioEnabled}
+                            activeOpacity={0.7}
+                        >
+                            <Phone size={18} color={audioEnabled ? Colors.primaryBackgroundColor : Colors.text.tertiary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.callBtn, !videoEnabled && styles.callBtnDisabled]}
+                            onPress={() => handleVideoCall(item)}
+                            disabled={!videoEnabled}
+                            activeOpacity={0.7}
+                        >
+                            <Video size={18} color={videoEnabled ? Colors.primaryBackgroundColor : Colors.text.tertiary} />
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
@@ -307,6 +321,11 @@ const styles = StyleSheet.create({
     statusLabel: {
         fontSize: 12,
         color: Colors.text.tertiary,
+        marginTop: 2,
+    },
+    locationLabel: {
+        fontSize: 12,
+        color: Colors.text.secondary,
         marginTop: 2,
     },
     callButtons: {

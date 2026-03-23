@@ -20,9 +20,12 @@ export interface ExploreEmployee {
     };
     girlEmployDetails?: {
         isGirlEmployee: boolean;
+        employeLocation?: string | null;
         isAvailableForCall?: boolean;
-        workingHourStart?: string | null;
-        workingHourEnd?: string | null;
+        isVideoCallAllowed?: boolean;
+        isAudioCallAllowed?: boolean;
+        workingHourStart?: Date | null;
+        workingHourEnd?: Date | null;
     };
 }
 

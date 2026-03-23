@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
     View,
-    Text,
     TouchableOpacity,
     ScrollView,
     ActivityIndicator,
-    Alert,
     StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,8 +15,10 @@ import {
     SubscriptionData,
 } from '@/APIs/subscriptionAPIs';
 import { Colors } from '@/constants/Colors';
-import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import CustomDialog, { DialogType } from '@/components/CustomDialog';
+import { ThemedText } from '@/components/ThemedText';
+import CustomBackButton from '@/components/CustomBackButton';
 
 const PLAN_COLORS: Record<string, string> = {
     basic: '#6366F1',
@@ -34,6 +34,34 @@ export default function SubscriptionScreenHome() {
     const [loading, setLoading] = useState(true);
     const [subscribing, setSubscribing] = useState<string | null>(null);
     const [cancelling, setCancelling] = useState(false);
+    const [dialogVisible, setDialogVisible] = useState(false);
+    const [dialogType, setDialogType] = useState<DialogType>('info');
+    const [dialogTitle, setDialogTitle] = useState('');
+    const [dialogMessage, setDialogMessage] = useState('');
+    const [dialogPrimaryButton, setDialogPrimaryButton] = useState<{
+        text: string;
+        onPress: () => void;
+    }>({ text: 'OK', onPress: () => setDialogVisible(false) });
+    const [dialogCancelButton, setDialogCancelButton] = useState<
+        { text: string; onPress: () => void } | undefined
+    >(undefined);
+
+    const showDialog = (
+        type: DialogType,
+        message: string,
+        title?: string,
+        primaryButton?: { text: string; onPress: () => void },
+        cancelButton?: { text: string; onPress: () => void },
+    ) => {
+        setDialogType(type);
+        setDialogTitle(title ?? '');
+        setDialogMessage(message);
+        setDialogPrimaryButton(
+            primaryButton ?? { text: 'OK', onPress: () => setDialogVisible(false) },
+        );
+        setDialogCancelButton(cancelButton);
+        setDialogVisible(true);
+    };
 
     const load = useCallback(async () => {
         if (!token) return;
@@ -46,7 +74,7 @@ export default function SubscriptionScreenHome() {
             setPlans(plansData.filter((p) => p.id !== 'free'));
             setCurrentSub(subData);
         } catch {
-            Alert.alert('Error', 'Could not load subscription info.');
+            showDialog('error', 'Could not load subscription info.', 'Error');
         } finally {
             setLoading(false);
         }
@@ -84,13 +112,14 @@ export default function SubscriptionScreenHome() {
                 razorpay_signature: response.razorpay_signature,
             });
 
-            Alert.alert('Success', `You're now on the ${plan.title} plan!`);
+            showDialog('success', `You're now on the ${plan.title} plan!`, 'Success');
             await load();
         } catch (err: any) {
             if (err?.code !== 2) {
-                Alert.alert(
-                    'Payment Failed',
+                showDialog(
+                    'error',
                     err?.description ?? err?.message ?? 'Something went wrong.',
+                    'Payment Failed',
                 );
             }
         } finally {
@@ -99,29 +128,28 @@ export default function SubscriptionScreenHome() {
     };
 
     const handleCancel = () => {
-        Alert.alert(
-            'Cancel Subscription',
+        showDialog(
+            'warning',
             'Your subscription will remain active until the current billing period ends. Continue?',
-            [
-                { text: 'Keep', style: 'cancel' },
-                {
-                    text: 'Cancel Subscription',
-                    style: 'destructive',
-                    onPress: async () => {
-                        if (!token) return;
-                        setCancelling(true);
-                        try {
-                            await subscriptionAPI.cancelSubscription(token);
-                            Alert.alert('Cancelled', 'Auto-renewal has been turned off.');
-                            await load();
-                        } catch (err: any) {
-                            Alert.alert('Error', err?.message ?? 'Could not cancel subscription.');
-                        } finally {
-                            setCancelling(false);
-                        }
-                    },
+            'Cancel Subscription',
+            {
+                text: 'Cancel Subscription',
+                onPress: async () => {
+                    if (!token) return;
+                    setDialogVisible(false);
+                    setCancelling(true);
+                    try {
+                        await subscriptionAPI.cancelSubscription(token);
+                        showDialog('success', 'Auto-renewal has been turned off.', 'Cancelled');
+                        await load();
+                    } catch (err: any) {
+                        showDialog('error', err?.message ?? 'Could not cancel subscription.', 'Error');
+                    } finally {
+                        setCancelling(false);
+                    }
                 },
-            ],
+            },
+            { text: 'Keep', onPress: () => setDialogVisible(false) },
         );
     };
 
@@ -136,26 +164,39 @@ export default function SubscriptionScreenHome() {
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom']}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color={Colors.titleColor} />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Pookiey Premium</Text>
-            </View>
+        <>
+            <CustomDialog
+                visible={dialogVisible}
+                type={dialogType}
+                title={dialogTitle}
+                message={dialogMessage}
+                onDismiss={() => setDialogVisible(false)}
+                primaryButton={dialogPrimaryButton}
+                cancelButton={dialogCancelButton}
+            />
+            <SafeAreaView style={styles.container} edges={['bottom', 'top']}>
+                <CustomBackButton />
+                <View style={styles.header}>
+                    <ThemedText type="title" style={styles.headerTitle}>
+                        Pookiey Premium
+                    </ThemedText>
+                    <ThemedText type="default" style={styles.headerSubtitle}>
+                        Upgrade for more daily interactions.
+                    </ThemedText>
+                </View>
 
             <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
                 {activePlan && (
                     <View style={styles.activeBanner}>
                         <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
-                        <Text style={styles.activeBannerText}>
+                        <ThemedText style={styles.activeBannerText}>
                             You're on the{' '}
-                            <Text style={{ fontWeight: '700' }}>
+                            <ThemedText type="defaultSemiBold" style={styles.activePlanLabel}>
                                 {activePlan.charAt(0).toUpperCase() + activePlan.slice(1)}
-                            </Text>{' '}
+                            </ThemedText>{' '}
                             plan
                             {currentSub?.autoRenew === false ? ' (expires at end of cycle)' : ''}
-                        </Text>
+                        </ThemedText>
                     </View>
                 )}
 
@@ -167,19 +208,21 @@ export default function SubscriptionScreenHome() {
                     return (
                         <View key={plan.id} style={[styles.planCard, isActive && { borderColor: color, borderWidth: 2 }]}>
                             <View style={[styles.planBadge, { backgroundColor: color }]}>
-                                <Text style={styles.planBadgeText}>{plan.title}</Text>
+                                <ThemedText type="defaultSemiBold" style={styles.planBadgeText}>
+                                    {plan.title}
+                                </ThemedText>
                             </View>
 
-                            <Text style={styles.planPrice}>
+                            <ThemedText type="title" style={styles.planPrice}>
                                 ₹{(plan.amountInPaise / 100).toFixed(0)}
-                                <Text style={styles.planPeriod}> / {plan.durationDays} days</Text>
-                            </Text>
+                                <ThemedText style={styles.planPeriod}> / {plan.durationDays} days</ThemedText>
+                            </ThemedText>
 
                             <View style={styles.features}>
                                 {plan.features.map((f, i) => (
                                     <View key={i} style={styles.featureRow}>
                                         <Ionicons name="checkmark-circle" size={16} color={color} />
-                                        <Text style={styles.featureText}>{f}</Text>
+                                        <ThemedText style={styles.featureText}>{f}</ThemedText>
                                     </View>
                                 ))}
                             </View>
@@ -193,9 +236,9 @@ export default function SubscriptionScreenHome() {
                                     {cancelling ? (
                                         <ActivityIndicator color={Colors.text.secondary} />
                                     ) : (
-                                        <Text style={styles.cancelButtonText}>
+                                        <ThemedText type="defaultSemiBold" style={styles.cancelButtonText}>
                                             {currentSub?.autoRenew === false ? 'Cancellation Pending' : 'Cancel Subscription'}
-                                        </Text>
+                                        </ThemedText>
                                     )}
                                 </TouchableOpacity>
                             ) : (
@@ -208,7 +251,9 @@ export default function SubscriptionScreenHome() {
                                     {isProcessing ? (
                                         <ActivityIndicator color="#fff" />
                                     ) : (
-                                        <Text style={styles.subscribeButtonText}>Subscribe</Text>
+                                        <ThemedText type="defaultSemiBold" style={styles.subscribeButtonText}>
+                                            Subscribe
+                                        </ThemedText>
                                     )}
                                 </TouchableOpacity>
                             )}
@@ -216,7 +261,8 @@ export default function SubscriptionScreenHome() {
                     );
                 })}
             </ScrollView>
-        </SafeAreaView>
+            </SafeAreaView>
+        </>
     );
 }
 
@@ -230,22 +276,17 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     header: {
-        flexDirection: 'row',
-        alignItems: 'center',
         paddingHorizontal: 16,
-        paddingVertical: 14,
-        backgroundColor: '#fff',
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#e0e0e0',
-    },
-    backButton: {
-        marginRight: 12,
+        paddingVertical: 8,
     },
     headerTitle: {
         flex: 1,
-        fontSize: 18,
-        fontWeight: '700',
+        fontSize: 24,
         color: Colors.titleColor,
+    },
+    headerSubtitle: {
+        color: Colors.text.secondary,
+        marginTop: 4,
     },
     scroll: {
         padding: 16,
@@ -266,6 +307,9 @@ const styles = StyleSheet.create({
         color: '#15803d',
         flex: 1,
     },
+    activePlanLabel: {
+        color: '#15803d',
+    },
     planCard: {
         backgroundColor: '#fff',
         borderRadius: 16,
@@ -285,18 +329,15 @@ const styles = StyleSheet.create({
     },
     planBadgeText: {
         fontSize: 13,
-        fontWeight: '700',
         color: '#fff',
     },
     planPrice: {
         fontSize: 28,
-        fontWeight: '800',
         color: Colors.titleColor,
         marginBottom: 14,
     },
     planPeriod: {
         fontSize: 14,
-        fontWeight: '400',
         color: Colors.text.secondary,
     },
     features: {
@@ -319,7 +360,6 @@ const styles = StyleSheet.create({
     },
     subscribeButtonText: {
         fontSize: 16,
-        fontWeight: '700',
         color: '#fff',
     },
     cancelButton: {
@@ -331,7 +371,6 @@ const styles = StyleSheet.create({
     },
     cancelButtonText: {
         fontSize: 14,
-        fontWeight: '600',
         color: Colors.text.secondary,
     },
 });

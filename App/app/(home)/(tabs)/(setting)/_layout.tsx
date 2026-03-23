@@ -14,7 +14,7 @@ export default function _layout() {
                 options={{
                     presentation: 'modal',
                     title: 'Cancel Subscription',
-                    headerShown: true,
+                    headerShown: false,
                     headerBackVisible: true,
                 }}
             />
@@ -22,7 +22,7 @@ export default function _layout() {
                 options={{
                     presentation: 'modal',
                     title: "Subscriptions",
-                    headerShown: true,
+                    headerShown: false,
                     headerBackVisible: true,
 
                 }} />
