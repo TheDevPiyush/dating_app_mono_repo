@@ -207,37 +207,88 @@ export const VideoCallUI: React.FC<VideoCallUIProps> = ({
               </View>
 
               <View style={styles.swipeCenter}>
-                <Animated.View
-                  style={[
-                    styles.chevrons,
-                    {
-                      opacity: chevronPulse.interpolate({ inputRange: [0, 1], outputRange: [0.2, 1] }),
-                      transform: [{ translateY: chevronPulse.interpolate({ inputRange: [0, 1], outputRange: [0, 6] }) }],
-                    },
-                  ]}
-                >
-                  {isIncomingPreConnect && (
-                    <>
-                      <Ionicons name="chevron-up" size={22} color="rgba(255,255,255,0.2)" />
-                      <Ionicons name="chevron-up" size={22} color="rgba(255,255,255,0.3)" />
-                    </>
-                  )}
-                  <Ionicons name="chevron-down" size={24} color="rgba(255,255,255,0.25)" />
-                  <Ionicons name="chevron-down" size={24} color="rgba(255,255,255,0.35)" />
-                  <Ionicons name="chevron-down" size={24} color="rgba(255,255,255,0.5)" />
-                </Animated.View>
+                {isIncomingPreConnect ? (
+                  <>
+                    {/* Up arrows — answer direction */}
+                    <Animated.View
+                      style={[
+                        styles.chevrons,
+                        {
+                          opacity: chevronPulse.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }),
+                          transform: [{ translateY: chevronPulse.interpolate({ inputRange: [0, 1], outputRange: [4, 0] }) }],
+                        },
+                      ]}
+                    >
+                      <Ionicons name="chevron-up" size={22} color="rgba(34,197,94,0.35)" />
+                      <Ionicons name="chevron-up" size={22} color="rgba(34,197,94,0.6)" />
+                      <Ionicons name="chevron-up" size={22} color="rgba(34,197,94,0.85)" />
+                    </Animated.View>
 
-                <Animated.View
-                  {...panResponder.panHandlers}
-                  style={[styles.fab, styles.fabCallBlue, { transform: [{ translateY: swipeY }] }]}
-                >
-                  <Ionicons name="videocam" size={24} color={Colors.primary.white} />
-                </Animated.View>
-                <ThemedText style={styles.swipeHint}>
-                  {isIncomingPreConnect
-                    ? 'Swipe up to answer or down to decline'
-                    : 'Swipe down to cancel'}
-                </ThemedText>
+                    {/* Bobbing video icon */}
+                    <Animated.View
+                      {...panResponder.panHandlers}
+                      style={[
+                        styles.fab,
+                        styles.fabCallBlue,
+                        {
+                          transform: [
+                            {
+                              translateY: Animated.add(
+                                swipeY,
+                                chevronPulse.interpolate({ inputRange: [0, 1], outputRange: [-6, 6] }),
+                              ),
+                            },
+                          ],
+                        },
+                      ]}
+                    >
+                      <Ionicons name="videocam" size={24} color={Colors.primary.white} />
+                    </Animated.View>
+
+                    {/* Down arrows — decline direction */}
+                    <Animated.View
+                      style={[
+                        styles.chevrons,
+                        {
+                          opacity: chevronPulse.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }),
+                          transform: [{ translateY: chevronPulse.interpolate({ inputRange: [0, 1], outputRange: [0, 4] }) }],
+                        },
+                      ]}
+                    >
+                      <Ionicons name="chevron-down" size={22} color="rgba(239,68,68,0.85)" />
+                      <Ionicons name="chevron-down" size={22} color="rgba(239,68,68,0.6)" />
+                      <Ionicons name="chevron-down" size={22} color="rgba(239,68,68,0.35)" />
+                    </Animated.View>
+
+                    <ThemedText style={styles.swipeHint}>
+                      Swipe up to answer or down to decline
+                    </ThemedText>
+                  </>
+                ) : (
+                  <>
+                    <Animated.View
+                      style={[
+                        styles.chevrons,
+                        {
+                          opacity: chevronPulse.interpolate({ inputRange: [0, 1], outputRange: [0.2, 1] }),
+                          transform: [{ translateY: chevronPulse.interpolate({ inputRange: [0, 1], outputRange: [0, 6] }) }],
+                        },
+                      ]}
+                    >
+                      <Ionicons name="chevron-down" size={24} color="rgba(255,255,255,0.25)" />
+                      <Ionicons name="chevron-down" size={24} color="rgba(255,255,255,0.35)" />
+                      <Ionicons name="chevron-down" size={24} color="rgba(255,255,255,0.5)" />
+                    </Animated.View>
+
+                    <Animated.View
+                      {...panResponder.panHandlers}
+                      style={[styles.fab, styles.fabCallBlue, { transform: [{ translateY: swipeY }] }]}
+                    >
+                      <Ionicons name="videocam" size={24} color={Colors.primary.white} />
+                    </Animated.View>
+                    <ThemedText style={styles.swipeHint}>Swipe down to cancel</ThemedText>
+                  </>
+                )}
               </View>
 
               <View style={styles.partyBlock}>

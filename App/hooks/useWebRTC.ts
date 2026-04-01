@@ -26,15 +26,12 @@ export interface IncomingCall {
   offer?: RTCSessionDescriptionInit;
 }
 
-// STUN/TURN servers for WebRTC (using free public STUN servers)
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
-  // Add TURN servers here if needed for NAT traversal
-  // { urls: 'turn:your-turn-server.com:3478', username: 'user', credential: 'pass' }
 ];
 
-export function useWebRTC() {
+export function useWebRTC(callTypeFilter?: 'voice' | 'video') {
   const { socket, isConnected, waitForConnection } = useSocket();
 
   const [status, setStatus] = useState<CallStatus>('idle');
@@ -55,7 +52,6 @@ export function useWebRTC() {
   const facingModeRef = useRef<'user' | 'environment'>('user');
   const statusRef = useRef<CallStatus>('idle');
   const incomingCallRef = useRef<IncomingCall | null>(null);
-  // Track last ended call to avoid handling stale late-arriving incoming events
   const lastEndedMatchRef = useRef<{ matchId: string | null; endedAt: number | null }>({
     matchId: null,
     endedAt: null,
@@ -63,7 +59,6 @@ export function useWebRTC() {
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const remoteDescSetRef = useRef<boolean>(false);
 
-  // Ensure permissions
   const ensurePermissions = useCallback(async (needsVideo: boolean) => {
     const micPerm = await requestRecordingPermissionsAsync();
     if (!micPerm.granted) {
@@ -78,30 +73,24 @@ export function useWebRTC() {
     }
   }, []);
 
-  // Cleanup function (defined early to avoid circular dependency)
   const cleanup = useCallback(() => {
-    // Stop local stream
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
       localStreamRef.current = null;
       setLocalStream(null);
     }
 
-    // Stop remote stream
     if (remoteStreamRef.current) {
       remoteStreamRef.current.getTracks().forEach(track => track.stop());
       remoteStreamRef.current = null;
       setRemoteStream(null);
     }
 
-    // Close peer connection
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
       peerConnectionRef.current = null;
     }
 
-    // Remember which call just ended (before clearing IDs) to ignore any
-    // late-arriving signaling for the same match.
     if (matchIdRef.current) {
       lastEndedMatchRef.current = {
         matchId: matchIdRef.current,
@@ -146,23 +135,28 @@ export function useWebRTC() {
     incomingCallRef.current = incomingCall;
   }, [incomingCall]);
 
-  // Create peer connection
   const createPeerConnection = useCallback(() => {
     const pc: any = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
-    // Handle remote track (replaces deprecated onaddstream)
     pc.ontrack = (event: any) => {
-      if (event.streams && event.streams[0]) {
-        remoteStreamRef.current = event.streams[0];
-        setRemoteStream(event.streams[0]);
+      let stream: MediaStream | null = event.streams?.[0] ?? null;
+      if (!stream && event.track) {
+        try {
+          stream = new MediaStream([event.track]);
+        } catch {
+          return;
+        }
+      }
+      if (stream) {
+        remoteStreamRef.current = stream;
+        setRemoteStream(stream);
+        setStatus('connected');
+        setIncomingCall(null);
       }
     };
 
-    // Handle ICE candidates
     pc.onicecandidate = (event: any) => {
       if (event.candidate && socket?.connected) {
-        // In react-native-webrtc, candidates are plain JS objects already suitable
-        // for JSON transport; no .toJSON() call is needed (and may be undefined).
         socket.emit('webrtc_ice_candidate', {
           matchId: matchIdRef.current,
           receiverId: receiverIdRef.current,
@@ -171,7 +165,6 @@ export function useWebRTC() {
       }
     };
 
-    // Handle connection state changes
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
       if (state === 'connected') {
@@ -196,7 +189,6 @@ export function useWebRTC() {
     return pc as RTCPeerConnection;
   }, [socket, cleanup]);
 
-  // Get user media (audio/video)
   const getUserMedia = useCallback(async (video: boolean): Promise<MediaStream> => {
     const constraints: any = {
       audio: true,
@@ -213,20 +205,13 @@ export function useWebRTC() {
     return stream;
   }, []);
 
-  // Flip camera
   const flipCamera = useCallback(async () => {
     if (!localStreamRef.current || callTypeRef.current !== 'video') return;
 
-    // Stop current video tracks
     localStreamRef.current.getVideoTracks().forEach(track => track.stop());
-
-    // Switch facing mode
     facingModeRef.current = facingModeRef.current === 'user' ? 'environment' : 'user';
-
-    // Get new stream with flipped camera
     const newStream = await getUserMedia(true);
 
-    // Replace tracks in peer connection if it exists
     if (peerConnectionRef.current) {
       const oldTracks = peerConnectionRef.current.getSenders();
       const newVideoTrack = newStream.getVideoTracks()[0];
@@ -242,7 +227,6 @@ export function useWebRTC() {
   }, [getUserMedia]);
 
 
-  // Initialize call (caller side)
   const initiateCall = useCallback(async (config: WebRTCCallConfig) => {
     try {
       setError(null);
@@ -257,23 +241,16 @@ export function useWebRTC() {
       isCallerRef.current = true;
       setStatus('calling');
 
-      // Get user media
       const stream = await getUserMedia(config.callType === 'video');
-
-      // Create peer connection
       const pc = createPeerConnection();
 
-      // Add local stream tracks to peer connection
       stream.getTracks().forEach(track => {
         pc.addTrack(track as any, stream);
       });
 
-      // Create offer
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      // Send offer via socket. `offer` is already a serializable
-      // RTCSessionDescriptionInit-like object.
       s.emit('call_initiate', {
         matchId: config.matchId,
         receiverId: config.receiverId,
@@ -281,7 +258,6 @@ export function useWebRTC() {
         offer,
       });
 
-      // Wait for answer
       await new Promise<void>((resolve, reject) => {
         const timer = setTimeout(() => {
           cleanupListeners();
@@ -323,10 +299,13 @@ export function useWebRTC() {
               reject(new Error('Call no longer active'));
               return;
             }
+            // Set 'connecting' BEFORE setRemoteDescription so that ontrack
+            // (which fires synchronously during setRemoteDescription) can
+            // advance to 'connected' without being overwritten afterwards.
+            setStatus('connecting');
             await pc.setRemoteDescription(new RTCSessionDescription(data.answer as any));
             remoteDescSetRef.current = true;
             await flushPendingCandidates();
-            setStatus('connecting');
             resolve();
           } catch (err) {
             reject(err);
@@ -350,9 +329,8 @@ export function useWebRTC() {
       cleanup();
       throw e;
     }
-  }, [socket, waitForConnection, ensurePermissions, getUserMedia, createPeerConnection, cleanup]);
+  }, [socket, waitForConnection, ensurePermissions, getUserMedia, createPeerConnection, cleanup, flushPendingCandidates]);
 
-  // Answer call (receiver side)
   const answerCall = useCallback(async () => {
     try {
       if (!incomingCall || !socket || !isConnected) return;
@@ -371,18 +349,13 @@ export function useWebRTC() {
       isCallerRef.current = false;
       setStatus('connecting');
 
-      // Get user media
       const stream = await getUserMedia(incomingCall.callType === 'video');
-
-      // Create peer connection
       const pc = createPeerConnection();
 
-      // Add local stream tracks
       stream.getTracks().forEach(track => {
         pc.addTrack(track as any, stream);
       });
 
-      // Set remote description from offer (stored in incomingCall state)
       if (!incomingCall.offer) {
         throw new Error('No offer found in incoming call');
       }
@@ -391,27 +364,20 @@ export function useWebRTC() {
       remoteDescSetRef.current = true;
       await flushPendingCandidates();
 
-      // Create answer
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
-      // Send answer via socket. `answer` is already serializable.
       socket.emit('call_answer', {
         matchId: incomingCall.matchId,
         callerId: incomingCall.callerId,
         answer,
       });
-
-      // Don't clear incomingCall immediately - keep it until call is connected
-      // This prevents the UI from flickering/hiding during the connecting phase
-      // It will be cleared when status becomes 'connected' or on cleanup
     } catch (e: any) {
       console.error('Error answering call:', e);
       cleanup();
     }
-  }, [incomingCall, socket, isConnected, ensurePermissions, getUserMedia, createPeerConnection, cleanup]);
+  }, [incomingCall, socket, isConnected, ensurePermissions, getUserMedia, createPeerConnection, cleanup, flushPendingCandidates]);
 
-  // Reject call
   const rejectCall = useCallback(() => {
     if (!incomingCall || !socket) return;
     socket.emit('call_reject', {
@@ -422,7 +388,6 @@ export function useWebRTC() {
     setStatus('idle');
   }, [incomingCall, socket]);
 
-  // End call
   const endCall = useCallback(() => {
     if (socket && matchIdRef.current && receiverIdRef.current) {
       socket.emit('call_end', {
@@ -433,7 +398,6 @@ export function useWebRTC() {
     cleanup();
   }, [socket, cleanup]);
 
-  // Toggle mute
   const toggleMute = useCallback(() => {
     if (localStreamRef.current) {
       const audioTracks = localStreamRef.current.getAudioTracks();
@@ -444,7 +408,6 @@ export function useWebRTC() {
     }
   }, [isMuted]);
 
-  // Toggle video
   const toggleVideo = useCallback(() => {
     if (localStreamRef.current) {
       const videoTracks = localStreamRef.current.getVideoTracks();
@@ -455,28 +418,22 @@ export function useWebRTC() {
     }
   }, [isVideoEnabled]);
 
-  // Socket listeners
+  // Socket listeners — use refs for status checks so we never need to
+  // re-register listeners on status changes (avoids missed events).
   useEffect(() => {
     if (!socket || !isConnected) return;
 
     const onIncoming = async (data: IncomingCall & { offer?: RTCSessionDescriptionInit }) => {
-      // Don't handle incoming calls if we're already in a call (status !== 'idle')
-      // This prevents ghost call screens after a call ends
-      if (status !== 'idle') {
-        return;
-      }
+      if (statusRef.current !== 'idle') return;
 
-      // If this incoming event refers to a match that just ended very recently,
-      // ignore it as a stale/late-arriving signal to avoid showing a dummy screen.
+      // Only handle events that match our call-type filter
+      if (callTypeFilter && data.callType !== callTypeFilter) return;
+
       const { matchId, endedAt } = lastEndedMatchRef.current;
       if (matchId && endedAt && matchId === data.matchId) {
-        const elapsed = Date.now() - endedAt;
-        if (elapsed < 3000) {
-          return;
-        }
+        if (Date.now() - endedAt < 3000) return;
       }
 
-      // Only handle if it matches our call type filter (handled by useWebRTCVoice/useWebRTCVideo)
       setIncomingCall({
         matchId: data.matchId,
         callerId: data.callerId,
@@ -488,21 +445,21 @@ export function useWebRTC() {
     };
 
     const onRejected = () => {
-      // Only cleanup if we're not already idle (avoid double cleanup)
-      if (status !== 'idle') {
+      if (statusRef.current !== 'idle') {
         cleanup();
       }
     };
 
     const onEnded = () => {
-      // Only cleanup if we're not already idle (avoid double cleanup)
-      if (status !== 'idle') {
+      if (statusRef.current !== 'idle') {
         cleanup();
       }
     };
 
     const onIceCandidate = async (data: { candidate: RTCIceCandidateInit }) => {
       if (!data.candidate) return;
+      // Skip ICE candidates when this instance isn't handling a call
+      if (statusRef.current === 'idle') return;
 
       if (!remoteDescSetRef.current || !peerConnectionRef.current) {
         pendingCandidatesRef.current.push(data.candidate);
@@ -527,7 +484,8 @@ export function useWebRTC() {
       socket.off('call_ended', onEnded);
       socket.off('webrtc_ice_candidate', onIceCandidate);
     };
-  }, [socket, isConnected, cleanup, status]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socket, isConnected, cleanup, callTypeFilter]);
 
   return {
     status,

@@ -119,9 +119,19 @@ export function useExploreWebRTC() {
         const pc: any = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
         pc.ontrack = (event: any) => {
-            if (event.streams?.[0]) {
-                remoteStreamRef.current = event.streams[0];
-                setRemoteStream(event.streams[0]);
+            let stream: MediaStream | null = event.streams?.[0] ?? null;
+            if (!stream && event.track) {
+                try {
+                    stream = new MediaStream([event.track]);
+                } catch {
+                    return;
+                }
+            }
+            if (stream) {
+                remoteStreamRef.current = stream;
+                setRemoteStream(stream);
+                setStatus('connected');
+                setIncomingCall(null);
             }
         };
 
@@ -269,10 +279,10 @@ export function useExploreWebRTC() {
                             reject(new Error('Call no longer active'));
                             return;
                         }
+                        setStatus('connecting');
                         await pc.setRemoteDescription(new RTCSessionDescription(data.answer as any));
                         remoteDescSetRef.current = true;
                         await flushPendingCandidates();
-                        setStatus('connecting');
                         resolve();
                     } catch (err) {
                         reject(err);
@@ -374,12 +384,12 @@ export function useExploreWebRTC() {
         }
     }, [isVideoEnabled]);
 
-    // Socket listeners
+    // Socket listeners — use statusRef so we never re-register on status changes
     useEffect(() => {
         if (!socket || !isConnected) return;
 
         const onIncoming = (data: IncomingExploreCall & { offer?: RTCSessionDescriptionInit }) => {
-            if (status !== 'idle') return;
+            if (statusRef.current !== 'idle') return;
 
             const { callId, endedAt } = lastEndedCallRef.current;
             if (callId && endedAt && callId === data.callId && Date.now() - endedAt < 3000) return;
@@ -396,8 +406,8 @@ export function useExploreWebRTC() {
             setStatus('ringing');
         };
 
-        const onRejected = () => { if (status !== 'idle') cleanup(); };
-        const onEnded = () => { if (status !== 'idle') cleanup(); };
+        const onRejected = () => { if (statusRef.current !== 'idle') cleanup(); };
+        const onEnded = () => { if (statusRef.current !== 'idle') cleanup(); };
 
         const onBalanceExhausted = () => {
             setError('Your balance has been exhausted.');
@@ -411,6 +421,7 @@ export function useExploreWebRTC() {
 
         const onIceCandidate = async (data: { candidate: RTCIceCandidateInit }) => {
             if (!data.candidate) return;
+            if (statusRef.current === 'idle') return;
 
             if (!remoteDescSetRef.current || !peerConnectionRef.current) {
                 pendingCandidatesRef.current.push(data.candidate);
@@ -439,7 +450,8 @@ export function useExploreWebRTC() {
             socket.off('explore_call_tick', onTick);
             socket.off('explore_webrtc_ice_candidate', onIceCandidate);
         };
-    }, [socket, isConnected, cleanup, status]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [socket, isConnected, cleanup]);
 
     return {
         status,

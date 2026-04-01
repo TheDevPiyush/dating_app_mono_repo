@@ -290,7 +290,6 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const shouldShowVideoUI =
     !!incomingVideoCall ||
     videoCallInitiated ||
-    videoStatus === 'ringing' ||
     videoStatus === 'calling' ||
     videoStatus === 'connecting' ||
     videoStatus === 'connected';
@@ -447,7 +446,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
       <VideoCallUI
         visible={shouldShowVideoUI}
-        isIncoming={!!incomingVideoCall || videoStatus === 'ringing'}
+        isIncoming={!!incomingVideoCall}
         isConnected={videoStatus === 'connected'}
         isRinging={videoStatus === 'ringing'}
         isConnecting={videoStatus === 'connecting'}

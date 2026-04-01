@@ -11,7 +11,7 @@ export function useWebRTCVideo() {
     isVideoEnabled,
     localStream,
     remoteStream,
-    incomingCall: baseIncomingCall,
+    incomingCall: incomingVideoCall,
     initiateCall,
     answerCall,
     rejectCall,
@@ -20,12 +20,7 @@ export function useWebRTCVideo() {
     toggleVideo,
     flipCamera,
     clearError,
-  } = useWebRTC();
-
-  // Filter to only video calls
-  const incomingVideoCall = useMemo(() => {
-    return baseIncomingCall?.callType === 'video' ? baseIncomingCall : null;
-  }, [baseIncomingCall]);
+  } = useWebRTC('video');
 
   const makeVideoCall = useCallback(
     async (matchId: string, receiverId: string, _receiverIdentity: string) => {

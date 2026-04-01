@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useWebRTC, CallStatus } from './useWebRTC';
+import { useWebRTC } from './useWebRTC';
 
 type VoiceCallStatus = {
   isCalling: boolean;
@@ -17,19 +17,14 @@ export function useWebRTCVoice() {
     isMuted,
     localStream,
     remoteStream,
-    incomingCall: baseIncomingCall,
+    incomingCall,
     initiateCall,
     answerCall,
     rejectCall,
     endCall,
     toggleMute,
     clearError,
-  } = useWebRTC();
-
-  // Filter to only voice calls
-  const incomingCall = useMemo(() => {
-    return baseIncomingCall?.callType === 'voice' ? baseIncomingCall : null;
-  }, [baseIncomingCall]);
+  } = useWebRTC('voice');
 
   const makeCall = useCallback(
     async (matchId: string, receiverId: string, _receiverIdentity: string) => {
