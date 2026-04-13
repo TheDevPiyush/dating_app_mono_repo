@@ -70,7 +70,7 @@ export interface IUserSubscriptionSnapshot {
     endDate?: Date | null;
     autoRenew?: boolean;
     lastPaymentAt?: Date | null;
-    provider?: "razorpay" | "stripe" | "paypal" | "apple" | "google" | null;
+    provider?: "razorpay" | "stripe" | "paypal" | "apple" | "google" | "adminprivilaged" | null;
     updatedAt?: Date | null;
 }
 
@@ -161,7 +161,7 @@ const UserSchema = new Schema<IUser>(
             lastPaymentAt: { type: Date, default: null },
             provider: {
                 type: String,
-                enum: ["razorpay", "stripe", "paypal", "apple", "google", null],
+                enum: ["razorpay", "stripe", "paypal", "apple", "google", "adminprivilaged", null],
                 default: null,
             },
             updatedAt: { type: Date, default: null },

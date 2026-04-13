@@ -9,6 +9,7 @@ import { Report } from "../models/Report";
 import { Story } from "../models/Story";
 import { Support } from "../models/Support";
 import { Call } from "../models/call";
+import { isValidPlanId, SubscriptionPlanId } from "../config/subscriptionPlans";
 
 // Helper to get date range
 const getDateRange = (filter: string) => {
@@ -312,15 +313,18 @@ export const getUserDetails = async (req: Request, res: Response) => {
             data: {
                 // Basic Info
                 user: {
+                    user_id: user.user_id,
                     email: user.email,
                     displayName: user.displayName,
-                    photoURL: user.photoURL,
                     phoneNumber: user.phoneNumber,
                     provider: user.provider,
                     isEmailVerified: user.isEmailVerified,
                     isPhoneVerified: user.isPhoneVerified,
                     status: user.status,
                     referralCode: user.referralCode,
+                    isAdmin: user.isAdmin,
+                    isModerator: user.isModerator,
+                    notificationTokens: user.notificationTokens || [],
                 },
                 // Profile
                 profile: user.profile ? {
@@ -345,6 +349,8 @@ export const getUserDetails = async (req: Request, res: Response) => {
                 // Subscription
                 subscription: user.subscription,
                 subscriptions: subscriptions,
+                wallet: user.wallet,
+                girlEmployDetails: user.girlEmployDetails,
                 // Account Info
                 account: {
                     createdAt: user.createdAt,
@@ -1333,5 +1339,211 @@ export const updateWomenEmployeeDetails = async (req: Request, res: Response) =>
         });
     } catch (error) {
         res.status(500).json({ success: false, message: "Failed to update employee details" });
+    }
+};
+
+const normalizeMatchPair = (a: string, b: string) => (a < b ? { user1Id: a, user2Id: b } : { user1Id: b, user2Id: a });
+
+export const searchUsersByEmail = async (req: Request, res: Response) => {
+    try {
+        const email = String(req.query.email || "").trim();
+        if (!email || email.length < 2) {
+            return res.status(400).json({ success: false, message: "Please provide at least 2 characters of email" });
+        }
+
+        const users = await User.find({
+            email: { $regex: email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" },
+        })
+            .select("user_id email displayName photoURL profile.firstName profile.lastName")
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .lean();
+
+        return res.json({ success: true, data: users });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Failed to search users" });
+    }
+};
+
+export const createManualInteraction = async (req: Request, res: Response) => {
+    try {
+        const { fromUserId, toUserId, type } = req.body as {
+            fromUserId?: string;
+            toUserId?: string;
+            type?: "like" | "dislike" | "superlike";
+        };
+
+        const allowedTypes = ["like", "dislike", "superlike"] as const;
+        if (!fromUserId || !toUserId || !type) {
+            return res.status(400).json({ success: false, message: "fromUserId, toUserId and type are required" });
+        }
+        if (fromUserId === toUserId) {
+            return res.status(400).json({ success: false, message: "Users must be different" });
+        }
+        if (!allowedTypes.includes(type)) {
+            return res.status(400).json({ success: false, message: "Invalid interaction type" });
+        }
+
+        const [fromUser, toUser] = await Promise.all([
+            User.findOne({ user_id: fromUserId }).select("user_id email displayName").lean(),
+            User.findOne({ user_id: toUserId }).select("user_id email displayName").lean(),
+        ]);
+        if (!fromUser || !toUser) {
+            return res.status(404).json({ success: false, message: "One or both users were not found" });
+        }
+
+        const interaction = await Interaction.findOneAndUpdate(
+            { fromUser: fromUserId, toUser: toUserId },
+            { $set: { type } },
+            { new: true, upsert: true, setDefaultsOnInsert: true }
+        ).lean();
+
+        return res.json({
+            success: true,
+            data: interaction,
+            message: "Interaction saved successfully",
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Failed to create interaction" });
+    }
+};
+
+export const createManualMatch = async (req: Request, res: Response) => {
+    try {
+        const { userAId, userBId, initiatedBy } = req.body as {
+            userAId?: string;
+            userBId?: string;
+            initiatedBy?: string;
+        };
+
+        if (!userAId || !userBId) {
+            return res.status(400).json({ success: false, message: "userAId and userBId are required" });
+        }
+        if (userAId === userBId) {
+            return res.status(400).json({ success: false, message: "Users must be different" });
+        }
+
+        const [userA, userB] = await Promise.all([
+            User.findOne({ user_id: userAId }).select("user_id email displayName").lean(),
+            User.findOne({ user_id: userBId }).select("user_id email displayName").lean(),
+        ]);
+        if (!userA || !userB) {
+            return res.status(404).json({ success: false, message: "One or both users were not found" });
+        }
+
+        const matchKey = normalizeMatchPair(userAId, userBId);
+        const match = await Matches.findOneAndUpdate(
+            matchKey,
+            {
+                $set: {
+                    status: "matched",
+                    initiatedBy: initiatedBy || userAId,
+                    lastInteractionAt: new Date(),
+                },
+            },
+            { new: true, upsert: true, setDefaultsOnInsert: true }
+        ).lean();
+
+        return res.json({
+            success: true,
+            data: match,
+            message: "Users matched successfully",
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Failed to create match" });
+    }
+};
+
+export const searchUsersForPremiumGrant = async (req: Request, res: Response) => {
+    try {
+        const email = String(req.query.email || "").trim();
+        if (!email || email.length < 3) {
+            return res.status(400).json({ success: false, message: "Please enter at least 3 characters" });
+        }
+
+        const escaped = email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const users = await User.find({ email: { $regex: escaped, $options: "i" } })
+            .select("user_id email displayName status subscription")
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .lean();
+
+        return res.json({ success: true, data: users });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Failed to search users" });
+    }
+};
+
+export const grantPremiumSubscription = async (req: Request, res: Response) => {
+    try {
+        const { userId, plan, validTill } = req.body as {
+            userId?: string;
+            plan?: SubscriptionPlanId | string;
+            validTill?: string;
+        };
+
+        if (!userId || !plan || !validTill) {
+            return res.status(400).json({ success: false, message: "userId, plan and validTill are required" });
+        }
+        if (!isValidPlanId(plan)) {
+            return res.status(400).json({ success: false, message: "Invalid subscription type" });
+        }
+
+        const endDate = new Date(validTill);
+        if (Number.isNaN(endDate.getTime())) {
+            return res.status(400).json({ success: false, message: "Invalid valid till date" });
+        }
+        if (endDate <= new Date()) {
+            return res.status(400).json({ success: false, message: "Valid till date must be in the future" });
+        }
+
+        const user = await User.findOne({ user_id: userId });
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        const now = new Date();
+        user.subscription = {
+            status: "active",
+            plan,
+            startDate: now,
+            endDate,
+            autoRenew: false,
+            lastPaymentAt: now,
+            provider: "adminprivilaged",
+            updatedAt: now,
+        };
+        await user.save();
+
+        const adminUserId = (req.user as { user_id?: string } | undefined)?.user_id;
+        const grantedSubscription = await Subscription.create({
+            user_id: user.user_id,
+            userId: user._id,
+            plan,
+            status: "active",
+            startDate: now,
+            endDate,
+            autoRenew: false,
+            paymentProvider: "adminprivilaged",
+            lastPaymentAt: now,
+            metadata: {
+                source: "admin-premium-grant",
+                grantedBy: adminUserId || "admin",
+            },
+        });
+
+        return res.json({
+            success: true,
+            message: "Premium subscription granted successfully",
+            data: {
+                user: {
+                    user_id: user.user_id,
+                    email: user.email,
+                },
+                subscription: grantedSubscription,
+            },
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Failed to grant premium subscription" });
     }
 };

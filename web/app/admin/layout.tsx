@@ -12,8 +12,10 @@ const adminNavItems = [
   { href: "/admin/users", label: "Users", icon: "👥" },
   { href: "/admin/women-employees", label: "Women Employees", icon: "👩‍💼" },
   { href: "/admin/interactions", label: "Interactions", icon: "💬" },
+  { href: "/admin/add-interaction", label: "Add intraction", icon: "🤝" },
   { href: "/admin/locations", label: "Locations", icon: "📍" },
   { href: "/admin/payments", label: "Payments", icon: "💰" },
+  { href: "/admin/premium-grants", label: "Premium Grants", icon: "👑" },
   { href: "/admin/reports", label: "Reports", icon: "🚨" },
 ];
 

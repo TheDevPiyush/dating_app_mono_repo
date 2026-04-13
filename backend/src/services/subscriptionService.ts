@@ -44,7 +44,7 @@ const updateUserSubscriptionSnapshot = async (
         endDate?: Date | null;
         autoRenew?: boolean;
         lastPaymentAt?: Date | null;
-        provider?: "razorpay" | "stripe" | "paypal" | "apple" | "google" | null;
+        provider?: "razorpay" | "stripe" | "paypal" | "apple" | "google" | "adminprivilaged" | null;
     }
 ) => {
     await User.updateOne(

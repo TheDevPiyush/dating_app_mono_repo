@@ -37,4 +37,13 @@ router.get("/women-employees", adminControllers.getWomenEmployees);
 router.get("/women-employees/:userId/analytics", adminControllers.getWomenEmployeeAnalytics);
 router.patch("/women-employees/:userId", adminControllers.updateWomenEmployeeDetails);
 
+// Manual interaction + match flow
+router.get("/manual-flow/users/search", adminControllers.searchUsersByEmail);
+router.post("/manual-flow/interaction", adminControllers.createManualInteraction);
+router.post("/manual-flow/match", adminControllers.createManualMatch);
+
+// Admin premium grants
+router.get("/premium-grants/users/search", adminControllers.searchUsersForPremiumGrant);
+router.post("/premium-grants/grant", adminControllers.grantPremiumSubscription);
+
 export default router;

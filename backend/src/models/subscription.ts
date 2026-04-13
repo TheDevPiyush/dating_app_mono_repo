@@ -11,7 +11,7 @@ export interface ISubscription extends Document {
     startDate: Date;
     endDate: Date;
     autoRenew: boolean;
-    paymentProvider: "razorpay" | "stripe" | "paypal" | "apple" | "google";
+    paymentProvider: "razorpay" | "stripe" | "paypal" | "apple" | "google" | "adminprivilaged";
     transactionId?: string;
     razorpaySubscriptionId?: string;
     razorpayPlanId?: string;
@@ -36,7 +36,7 @@ const SubscriptionSchema = new Schema<ISubscription>(
         autoRenew: { type: Boolean, default: true },
         paymentProvider: {
             type: String,
-            enum: ["razorpay", "stripe", "paypal", "apple", "google"],
+            enum: ["razorpay", "stripe", "paypal", "apple", "google", "adminprivilaged"],
             default: "razorpay",
         },
         transactionId: { type: String, index: true },

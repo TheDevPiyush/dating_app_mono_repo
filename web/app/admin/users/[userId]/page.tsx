@@ -8,15 +8,18 @@ import Link from "next/link";
 
 interface UserDetails {
   user: {
+    user_id: string;
     email: string;
     displayName?: string;
-    photoURL?: string;
     phoneNumber?: string;
     provider: string;
     isEmailVerified: boolean;
     isPhoneVerified: boolean;
     status: string;
     referralCode?: string;
+    isAdmin?: boolean;
+    isModerator?: boolean;
+    notificationTokens?: string[];
   };
   profile: {
     firstName?: string;
@@ -47,6 +50,29 @@ interface UserDetails {
     distanceMaxKm?: number;
     ageRange?: [number, number];
     showMe?: string[];
+    notificationPermissions?: {
+      like?: boolean;
+      message?: boolean;
+      match?: boolean;
+      comment?: boolean;
+      follow?: boolean;
+    };
+  };
+  wallet?: {
+    balance?: number;
+    totalRecharged?: number;
+    lastRechargedAt?: string | null;
+  };
+  girlEmployDetails?: {
+    isGirlEmployee?: boolean;
+    employeLocation?: string | null;
+    workingHourStart?: string | null;
+    workingHourEnd?: string | null;
+    workingDateStart?: string | null;
+    workingDateEnd?: string | null;
+    isAvailableForCall?: boolean;
+    isVideoCallAllowed?: boolean;
+    isAudioCallAllowed?: boolean;
   };
   subscription?: {
     status: string;
@@ -171,6 +197,9 @@ export default function UserDetailPage() {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleString();
   };
+  const profilePrimaryPhoto =
+    userDetails.profile?.photos?.find((p) => p.isPrimary)?.url ||
+    userDetails.profile?.photos?.[0]?.url;
 
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
@@ -319,11 +348,11 @@ export default function UserDetailPage() {
               </p>
             </div>
           )}
-          {userDetails.user.photoURL && (
+          {profilePrimaryPhoto && (
             <div>
               <p className="text-xs md:text-sm text-[#6F6077] mb-2">Profile Photo</p>
               <img
-                src={userDetails.user.photoURL}
+                src={profilePrimaryPhoto}
                 alt={userDetails.user.displayName || "Profile"}
                 className="h-20 w-20 rounded-full object-cover"
               />
@@ -439,6 +468,14 @@ export default function UserDetailPage() {
                 </p>
               </div>
             )}
+            {userDetails.profile.isOnboarded !== undefined && (
+              <div>
+                <p className="text-xs md:text-sm text-[#6F6077] mb-1">Onboarded</p>
+                <span className={`text-xs px-2 py-1 rounded ${userDetails.profile.isOnboarded ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}`}>
+                  {userDetails.profile.isOnboarded ? "Yes" : "No"}
+                </span>
+              </div>
+            )}
             {/* Photos 
             
             {userDetails.profile.photos && userDetails.profile.photos.length > 0 && (
@@ -524,6 +561,85 @@ export default function UserDetailPage() {
             </div>
           </div>
         )}
+
+      {/* Notification Permissions */}
+      {userDetails.preferences?.notificationPermissions && (
+        <div className="glass-card rounded-2xl p-4 md:p-6">
+          <h2 className="text-lg md:text-xl font-semibold text-[#2A1F2D] mb-4">Notification Permissions</h2>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {Object.entries(userDetails.preferences.notificationPermissions).map(([key, value]) => (
+              <div key={key} className="rounded-xl bg-white/50 p-3 border border-white/60">
+                <p className="text-xs text-[#6F6077] capitalize">{key}</p>
+                <p className={`text-sm font-medium ${value ? "text-green-700" : "text-gray-700"}`}>
+                  {value ? "Enabled" : "Disabled"}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Wallet */}
+      {userDetails.wallet && (
+        <div className="glass-card rounded-2xl p-4 md:p-6">
+          <h2 className="text-lg md:text-xl font-semibold text-[#2A1F2D] mb-4">Wallet</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <p className="text-xs md:text-sm text-[#6F6077] mb-1">Balance</p>
+              <p className="text-sm md:text-base font-medium text-[#2A1F2D]">{userDetails.wallet.balance ?? 0}</p>
+            </div>
+            <div>
+              <p className="text-xs md:text-sm text-[#6F6077] mb-1">Total Recharged</p>
+              <p className="text-sm md:text-base font-medium text-[#2A1F2D]">{userDetails.wallet.totalRecharged ?? 0}</p>
+            </div>
+            <div>
+              <p className="text-xs md:text-sm text-[#6F6077] mb-1">Last Recharged</p>
+              <p className="text-sm md:text-base font-medium text-[#2A1F2D]">{formatDate(userDetails.wallet.lastRechargedAt ?? undefined)}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Role Flags */}
+      <div className="glass-card rounded-2xl p-4 md:p-6">
+        <h2 className="text-lg md:text-xl font-semibold text-[#2A1F2D] mb-4">Role & System</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <p className="text-xs md:text-sm text-[#6F6077] mb-1">Admin</p>
+            <span className={`text-xs px-2 py-1 rounded ${userDetails.user.isAdmin ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}`}>
+              {userDetails.user.isAdmin ? "Yes" : "No"}
+            </span>
+          </div>
+          <div>
+            <p className="text-xs md:text-sm text-[#6F6077] mb-1">Moderator</p>
+            <span className={`text-xs px-2 py-1 rounded ${userDetails.user.isModerator ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}`}>
+              {userDetails.user.isModerator ? "Yes" : "No"}
+            </span>
+          </div>
+          <div>
+            <p className="text-xs md:text-sm text-[#6F6077] mb-1">Notification Tokens</p>
+            <p className="text-sm md:text-base font-medium text-[#2A1F2D]">{userDetails.user.notificationTokens?.length ?? 0}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Girl Employee Details */}
+      {userDetails.girlEmployDetails && (
+        <div className="glass-card rounded-2xl p-4 md:p-6">
+          <h2 className="text-lg md:text-xl font-semibold text-[#2A1F2D] mb-4">Girl Employee Details</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div><p className="text-xs md:text-sm text-[#6F6077] mb-1">Is Girl Employee</p><p className="text-sm md:text-base font-medium text-[#2A1F2D]">{userDetails.girlEmployDetails.isGirlEmployee ? "Yes" : "No"}</p></div>
+            <div><p className="text-xs md:text-sm text-[#6F6077] mb-1">Employee Location</p><p className="text-sm md:text-base font-medium text-[#2A1F2D]">{userDetails.girlEmployDetails.employeLocation || "N/A"}</p></div>
+            <div><p className="text-xs md:text-sm text-[#6F6077] mb-1">Available For Call</p><p className="text-sm md:text-base font-medium text-[#2A1F2D]">{userDetails.girlEmployDetails.isAvailableForCall ? "Yes" : "No"}</p></div>
+            <div><p className="text-xs md:text-sm text-[#6F6077] mb-1">Video Call Allowed</p><p className="text-sm md:text-base font-medium text-[#2A1F2D]">{userDetails.girlEmployDetails.isVideoCallAllowed ? "Yes" : "No"}</p></div>
+            <div><p className="text-xs md:text-sm text-[#6F6077] mb-1">Audio Call Allowed</p><p className="text-sm md:text-base font-medium text-[#2A1F2D]">{userDetails.girlEmployDetails.isAudioCallAllowed ? "Yes" : "No"}</p></div>
+            <div><p className="text-xs md:text-sm text-[#6F6077] mb-1">Working Hour Start</p><p className="text-sm md:text-base font-medium text-[#2A1F2D]">{formatDate(userDetails.girlEmployDetails.workingHourStart ?? undefined)}</p></div>
+            <div><p className="text-xs md:text-sm text-[#6F6077] mb-1">Working Hour End</p><p className="text-sm md:text-base font-medium text-[#2A1F2D]">{formatDate(userDetails.girlEmployDetails.workingHourEnd ?? undefined)}</p></div>
+            <div><p className="text-xs md:text-sm text-[#6F6077] mb-1">Working Date Start</p><p className="text-sm md:text-base font-medium text-[#2A1F2D]">{formatDate(userDetails.girlEmployDetails.workingDateStart ?? undefined)}</p></div>
+            <div><p className="text-xs md:text-sm text-[#6F6077] mb-1">Working Date End</p><p className="text-sm md:text-base font-medium text-[#2A1F2D]">{formatDate(userDetails.girlEmployDetails.workingDateEnd ?? undefined)}</p></div>
+          </div>
+        </div>
+      )}
 
       {/* Subscription */}
       {(userDetails.subscription || (userDetails.subscriptions && userDetails.subscriptions.length > 0)) && (
@@ -622,6 +738,14 @@ export default function UserDetailPage() {
               <p className="text-xs md:text-sm text-[#6F6077] mb-1">Daily Interactions</p>
               <p className="text-sm md:text-base font-medium text-[#2A1F2D]">
                 {userDetails.account.dailyInteractionCount}
+              </p>
+            </div>
+          )}
+          {userDetails.account.lastInteractionResetAt && (
+            <div>
+              <p className="text-xs md:text-sm text-[#6F6077] mb-1">Last Interaction Reset</p>
+              <p className="text-sm md:text-base font-medium text-[#2A1F2D]">
+                {formatDate(userDetails.account.lastInteractionResetAt)}
               </p>
             </div>
           )}
