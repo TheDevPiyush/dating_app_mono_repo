@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   View,
   StyleSheet,
@@ -14,97 +14,97 @@ import {
   Modal,
   Pressable,
   ScrollView,
-} from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/Colors';
-import { ThemedText } from '@/components/ThemedText';
-import { useAuth } from '@/hooks/useAuth';
-import { storyAPI } from '@/APIs/storyAPIs';
-import { useStoryStore, StoryItem } from '@/store/storyStore';
-import { useAuthStore } from '@/store/authStore';
-import { getUserByIdAPI } from '@/APIs/userAPIs';
-import CustomDialog, { DialogType } from '@/components/CustomDialog';
-import * as Haptics from 'expo-haptics';
-import { VideoView, useVideoPlayer } from 'expo-video';
-import { useEvent, useEventListener } from 'expo';
-import { useTranslation } from 'react-i18next';
+} from 'react-native'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useRouter, useFocusEffect } from 'expo-router'
+import { LinearGradient } from 'expo-linear-gradient'
+import { Ionicons } from '@expo/vector-icons'
+import { Colors } from '@/constants/Colors'
+import { ThemedText } from '@/components/ThemedText'
+import { useAuth } from '@/hooks/useAuth'
+import { storyAPI } from '@/APIs/storyAPIs'
+import { useStoryStore, StoryItem } from '@/store/storyStore'
+import { useAuthStore } from '@/store/authStore'
+import { getUserByIdAPI } from '@/APIs/userAPIs'
+import CustomDialog, { DialogType } from '@/components/CustomDialog'
+import * as Haptics from 'expo-haptics'
+import { VideoView, useVideoPlayer } from 'expo-video'
+import { useEvent, useEventListener } from 'expo'
+import { useTranslation } from 'react-i18next'
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window')
 
 // Calculate responsive story item size
-const LIST_PADDING = 12 * 2; // left + right padding
-const ITEM_PADDING = 4 * 2; // left + right padding per item
-const NUM_COLUMNS = 4;
-const AVAILABLE_WIDTH = SCREEN_WIDTH - LIST_PADDING;
-const ITEM_WIDTH = (AVAILABLE_WIDTH - (ITEM_PADDING * NUM_COLUMNS)) / NUM_COLUMNS;
-const STORY_CIRCLE_SIZE = Math.min(ITEM_WIDTH - 8, 140); // Max 140px (increased for bigger profiles), but responsive
-const STORY_CIRCLE_INNER = STORY_CIRCLE_SIZE - 6; // Account for border padding
-const STORY_AVATAR_SIZE = STORY_CIRCLE_INNER - 6; // Account for inner padding
-const STORY_DURATION = 5000; // 5 seconds per story
+const LIST_PADDING = 12 * 2 // left + right padding
+const ITEM_PADDING = 4 * 2 // left + right padding per item
+const NUM_COLUMNS = 4
+const AVAILABLE_WIDTH = SCREEN_WIDTH - LIST_PADDING
+const ITEM_WIDTH = (AVAILABLE_WIDTH - (ITEM_PADDING * NUM_COLUMNS)) / NUM_COLUMNS
+const STORY_CIRCLE_SIZE = Math.min(ITEM_WIDTH - 8, 140) // Max 140px (increased for bigger profiles), but responsive
+const STORY_CIRCLE_INNER = STORY_CIRCLE_SIZE - 6 // Account for border padding
+const STORY_AVATAR_SIZE = STORY_CIRCLE_INNER - 6 // Account for inner padding
+const STORY_DURATION = 5000 // 5 seconds per story
 
 export default function StoriesScreen() {
-  const router = useRouter();
-  const { token } = useAuth();
-  const { t } = useTranslation();
-  const insets = useSafeAreaInsets(); // Move hook to top - must be called unconditionally
+  const router = useRouter()
+  const { token } = useAuth()
+  const { t } = useTranslation()
+  const insets = useSafeAreaInsets() // Move hook to top - must be called unconditionally
 
   // Get stories from store (loaded from home page)
-  const { stories, categorizedStories, isLoading, setCategorizedStories, setLoading, updateStoryViewStatus } = useStoryStore();
-  const { dbUser } = useAuthStore();
-  const [refreshing, setRefreshing] = useState(false);
-  const [selectedStoryIndex, setSelectedStoryIndex] = useState<number | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<'myStory' | 'friends' | 'discover' | null>(null);
-  const [currentUserIndex, setCurrentUserIndex] = useState<number>(0);
-  const [currentStoryIndex, setCurrentStoryIndex] = useState<number>(0);
-  const [viewedStoryIds, setViewedStoryIds] = useState<Set<string>>(new Set());
-  const [showMenu, setShowMenu] = useState(false);
-  const [deletingStoryId, setDeletingStoryId] = useState<string | null>(null);
-  const [wasViewingStory, setWasViewingStory] = useState<number | null>(null);
-  const [showViewers, setShowViewers] = useState(false);
-  const [storyViewers, setStoryViewers] = useState<any[]>([]);
-  const [loadingViewers, setLoadingViewers] = useState(false);
-  const [storyLikes, setStoryLikes] = useState<Record<string, { isLiked: boolean; likesCount: number }>>({});
-  const pausedProgressRef = useRef<number | null>(null);
-  const isPausedRef = useRef(false);
-  const currentProgressRef = useRef<number>(0);
-  const progressListenerRef = useRef<string | null>(null);
+  const { stories, categorizedStories, isLoading, setCategorizedStories, setLoading, updateStoryViewStatus } = useStoryStore()
+  const { dbUser } = useAuthStore()
+  const [refreshing, setRefreshing] = useState(false)
+  const [selectedStoryIndex, setSelectedStoryIndex] = useState<number | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<'myStory' | 'friends' | 'discover' | null>(null)
+  const [currentUserIndex, setCurrentUserIndex] = useState<number>(0)
+  const [currentStoryIndex, setCurrentStoryIndex] = useState<number>(0)
+  const [viewedStoryIds, setViewedStoryIds] = useState<Set<string>>(new Set())
+  const [showMenu, setShowMenu] = useState(false)
+  const [deletingStoryId, setDeletingStoryId] = useState<string | null>(null)
+  const [wasViewingStory, setWasViewingStory] = useState<number | null>(null)
+  const [showViewers, setShowViewers] = useState(false)
+  const [storyViewers, setStoryViewers] = useState<any[]>([])
+  const [loadingViewers, setLoadingViewers] = useState(false)
+  const [storyLikes, setStoryLikes] = useState<Record<string, { isLiked: boolean; likesCount: number }>>({})
+  const pausedProgressRef = useRef<number | null>(null)
+  const isPausedRef = useRef(false)
+  const currentProgressRef = useRef<number>(0)
+  const progressListenerRef = useRef<string | null>(null)
 
   // Pagination state
-  const [friendsPage, setFriendsPage] = useState(1);
-  const [discoverPage, setDiscoverPage] = useState(1);
-  const [hasMoreFriends, setHasMoreFriends] = useState(false);
-  const [hasMoreDiscover, setHasMoreDiscover] = useState(false);
-  const [loadingMoreFriends, setLoadingMoreFriends] = useState(false);
-  const [loadingMoreDiscover, setLoadingMoreDiscover] = useState(false);
-  const progressAnim = useRef(new Animated.Value(0)).current;
-  const storyTimer = useRef<NodeJS.Timeout | null>(null);
+  const [friendsPage, setFriendsPage] = useState(1)
+  const [discoverPage, setDiscoverPage] = useState(1)
+  const [hasMoreFriends, setHasMoreFriends] = useState(false)
+  const [hasMoreDiscover, setHasMoreDiscover] = useState(false)
+  const [loadingMoreFriends, setLoadingMoreFriends] = useState(false)
+  const [loadingMoreDiscover, setLoadingMoreDiscover] = useState(false)
+  const progressAnim = useRef(new Animated.Value(0)).current
+  const storyTimer = useRef<NodeJS.Timeout | null>(null)
 
   // Dialog states
-  const [dialogVisible, setDialogVisible] = useState(false);
-  const [dialogType, setDialogType] = useState<DialogType>('info');
-  const [dialogTitle, setDialogTitle] = useState<string>('');
-  const [dialogMessage, setDialogMessage] = useState<string>('');
-  const [dialogPrimaryButton, setDialogPrimaryButton] = useState<{ text: string; onPress: () => void }>({ text: 'OK', onPress: () => setDialogVisible(false) });
-  const [dialogSecondaryButton, setDialogSecondaryButton] = useState<{ text: string; onPress: () => void } | undefined>(undefined);
-  const [dialogCancelButton, setDialogCancelButton] = useState<{ text: string; onPress: () => void } | undefined>(undefined);
+  const [dialogVisible, setDialogVisible] = useState(false)
+  const [dialogType, setDialogType] = useState<DialogType>('info')
+  const [dialogTitle, setDialogTitle] = useState<string>('')
+  const [dialogMessage, setDialogMessage] = useState<string>('')
+  const [dialogPrimaryButton, setDialogPrimaryButton] = useState<{ text: string; onPress: () => void }>({ text: 'OK', onPress: () => setDialogVisible(false) })
+  const [dialogSecondaryButton, setDialogSecondaryButton] = useState<{ text: string; onPress: () => void } | undefined>(undefined)
+  const [dialogCancelButton, setDialogCancelButton] = useState<{ text: string; onPress: () => void } | undefined>(undefined)
 
   // Refresh stories (reload from API) with pagination support
   const loadStories = useCallback(async (page?: { friends?: number; discover?: number }, append?: boolean) => {
     if (!token) {
-      setLoading(false);
-      return;
+      setLoading(false)
+      return
     }
 
     try {
       if (!append) {
-        setLoading(true);
+        setLoading(true)
       }
-      const friendsPageNum = page?.friends || friendsPage;
-      const discoverPageNum = page?.discover || discoverPage;
-      const data = await storyAPI.getStories(token, friendsPageNum, 10, discoverPageNum, 10);
+      const friendsPageNum = page?.friends || friendsPage
+      const discoverPageNum = page?.discover || discoverPage
+      const data = await storyAPI.getStories(token, friendsPageNum, 10, discoverPageNum, 10)
 
       // Handle new categorized structure
       if (data && typeof data === 'object' && !Array.isArray(data) && 'myStory' in data) {
@@ -113,27 +113,27 @@ export default function StoriesScreen() {
           myStory: data.myStory || null,
           friends: Array.isArray(data.friends) ? data.friends : [],
           discover: Array.isArray(data.discover) ? data.discover : []
-        };
+        }
 
         // Append if loading more
         if (append) {
-          const currentStories = categorizedStories;
+          const currentStories = categorizedStories
           if (page?.friends && currentStories.friends) {
-            categorizedStories.friends = [...(categorizedStories.friends || []), ...currentStories.friends];
+            categorizedStories.friends = [...(categorizedStories.friends || []), ...currentStories.friends]
           }
           if (page?.discover && currentStories.discover) {
-            categorizedStories.discover = [...(categorizedStories.discover || []), ...currentStories.discover];
+            categorizedStories.discover = [...(categorizedStories.discover || []), ...currentStories.discover]
           }
         } else {
           // Reset pages when loading fresh
-          setFriendsPage(1);
-          setDiscoverPage(1);
+          setFriendsPage(1)
+          setDiscoverPage(1)
         }
 
         // Update pagination info
         if (data.pagination) {
-          setHasMoreFriends(data.pagination.friends?.hasMore || false);
-          setHasMoreDiscover(data.pagination.discover?.hasMore || false);
+          setHasMoreFriends(data.pagination.friends?.hasMore || false)
+          setHasMoreDiscover(data.pagination.discover?.hasMore || false)
         }
 
         // Update likes state
@@ -144,11 +144,11 @@ export default function StoriesScreen() {
               likesMap[story.id] = {
                 isLiked: story.isLiked || false,
                 likesCount: story.likesCount || 0
-              };
+              }
             }
-          });
-        });
-        setStoryLikes(prev => ({ ...prev, ...likesMap }));
+          })
+        })
+        setStoryLikes(prev => ({ ...prev, ...likesMap }))
 
         // Ensure "Your Story" exists even if empty
         if (!categorizedStories.myStory && dbUser?.user_id) {
@@ -161,10 +161,10 @@ export default function StoriesScreen() {
           }
         }
 
-        setCategorizedStories(categorizedStories);
+        setCategorizedStories(categorizedStories)
       } else if (Array.isArray(data)) {
         // Fallback to old structure (flat array)
-        const storiesList: StoryItem[] = data;
+        const storiesList: StoryItem[] = data
         const myStoryIndex = storiesList.findIndex(item => item.isMe)
 
         const currentUserId = dbUser?.user_id
@@ -200,7 +200,7 @@ export default function StoriesScreen() {
         })
       } else {
         // If data is neither object with myStory nor array, set empty structure
-        console.warn('Unexpected data format from stories API:', data);
+        console.warn('Unexpected data format from stories API:', data)
         setCategorizedStories({
           myStory: dbUser?.user_id ? {
             id: dbUser.user_id,
@@ -211,12 +211,12 @@ export default function StoriesScreen() {
           } : null,
           friends: [],
           discover: []
-        });
+        })
       }
     } catch (error: any) {
-      console.error('Error loading stories:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to load stories';
-      showDialog('error', errorMessage, 'Error');
+      console.error('Error loading stories:', error)
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to load stories'
+      showDialog('error', errorMessage, 'Error')
       // Even on error, ensure "Your Story" exists if we have user info
       if (dbUser?.user_id) {
         const myStory: StoryItem = {
@@ -230,24 +230,24 @@ export default function StoriesScreen() {
           myStory,
           friends: [],
           discover: []
-        });
+        })
       } else {
         setCategorizedStories({
           myStory: null,
           friends: [],
           discover: []
-        });
+        })
       }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setLoading(false)
+      setRefreshing(false)
     }
-  }, [token, setCategorizedStories, setLoading, dbUser]);
+  }, [token, setCategorizedStories, setLoading, dbUser])
 
   const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadStories();
-  }, [loadStories]);
+    setRefreshing(true)
+    loadStories()
+  }, [loadStories])
 
   // Show dialog helper function
   const showDialog = (
@@ -258,71 +258,71 @@ export default function StoriesScreen() {
     secondaryButton?: { text: string; onPress: () => void },
     cancelButton?: { text: string; onPress: () => void }
   ) => {
-    setDialogType(type);
-    setDialogTitle(title || '');
-    setDialogMessage(message);
-    setDialogPrimaryButton(primaryButton || { text: 'OK', onPress: () => setDialogVisible(false) });
-    setDialogSecondaryButton(secondaryButton);
-    setDialogCancelButton(cancelButton);
-    setDialogVisible(true);
-  };
+    setDialogType(type)
+    setDialogTitle(title || '')
+    setDialogMessage(message)
+    setDialogPrimaryButton(primaryButton || { text: 'OK', onPress: () => setDialogVisible(false) })
+    setDialogSecondaryButton(secondaryButton)
+    setDialogCancelButton(cancelButton)
+    setDialogVisible(true)
+  }
 
   const handleStoryPress = (item: StoryItem, category: 'myStory' | 'friends' | 'discover', indexInCategory: number) => {
-    if (!categorizedStories) return;
+    if (!categorizedStories) return
 
     // Set the category and index within that category
-    setSelectedCategory(category);
-    setSelectedStoryIndex(indexInCategory);
-  };
+    setSelectedCategory(category)
+    setSelectedStoryIndex(indexInCategory)
+  }
 
   const handleAddStory = () => {
-    router.push('/(home)/(tabs)/(story)/create' as any);
-  };
+    router.push('/(home)/(tabs)/(story)/create' as any)
+  }
 
   const handleCloseStory = useCallback(async () => {
     if (storyTimer.current) {
-      clearTimeout(storyTimer.current);
-      storyTimer.current = null;
+      clearTimeout(storyTimer.current)
+      storyTimer.current = null
     }
-    progressAnim.setValue(0);
-    progressAnim.stopAnimation();
-    setSelectedStoryIndex(null);
-    setSelectedCategory(null);
-    setCurrentUserIndex(0);
-    setCurrentStoryIndex(0);
-    setViewedStoryIds(new Set());
-    setShowMenu(false);
+    progressAnim.setValue(0)
+    progressAnim.stopAnimation()
+    setSelectedStoryIndex(null)
+    setSelectedCategory(null)
+    setCurrentUserIndex(0)
+    setCurrentStoryIndex(0)
+    setViewedStoryIds(new Set())
+    setShowMenu(false)
     // No need to navigate - setting selectedStoryIndex to null will show the list view
     // Refresh stories to update view status
-    loadStories();
-  }, [progressAnim, loadStories]);
+    loadStories()
+  }, [progressAnim, loadStories])
 
   const handleBackButton = async () => {
     // Clean up story resources
     if (storyTimer.current) {
-      clearTimeout(storyTimer.current);
-      storyTimer.current = null;
+      clearTimeout(storyTimer.current)
+      storyTimer.current = null
     }
-    progressAnim.setValue(0);
-    progressAnim.stopAnimation();
-    setSelectedStoryIndex(null);
-    setSelectedCategory(null);
-    setCurrentUserIndex(0);
-    setCurrentStoryIndex(0);
-    setViewedStoryIds(new Set());
-    setShowMenu(false);
+    progressAnim.setValue(0)
+    progressAnim.stopAnimation()
+    setSelectedStoryIndex(null)
+    setSelectedCategory(null)
+    setCurrentUserIndex(0)
+    setCurrentStoryIndex(0)
+    setViewedStoryIds(new Set())
+    setShowMenu(false)
     // Navigate to home tab
-    router.push('/(home)/(tabs)/index' as any);
-  };
+    router.push('/(home)/(tabs)/index' as any)
+  }
 
   const handleDeleteStory = async () => {
-    const current = getCurrentStory();
+    const current = getCurrentStory()
     if (!current || !current.user.isMe) {
-      return;
+      return
     }
 
-    const storyId = current.story.id;
-    setShowMenu(false);
+    const storyId = current.story.id
+    setShowMenu(false)
 
     showDialog(
       'warning',
@@ -331,50 +331,50 @@ export default function StoriesScreen() {
       {
         text: 'Delete',
         onPress: async () => {
-          setDialogVisible(false);
+          setDialogVisible(false)
           try {
-            setDeletingStoryId(storyId);
+            setDeletingStoryId(storyId)
             if (!token) {
-              showDialog('error', 'Please log in to delete stories', 'Error');
-              return;
+              showDialog('error', 'Please log in to delete stories', 'Error')
+              return
             }
 
-            await storyAPI.deleteStory(storyId, token);
+            await storyAPI.deleteStory(storyId, token)
 
             // Refresh stories first
-            await loadStories();
+            await loadStories()
 
             // Get updated stories after refresh
-            const updatedStories = getAllStories();
+            const updatedStories = getAllStories()
             if (updatedStories.length === 0 || currentUserIndex >= updatedStories.length) {
-              handleCloseStory();
-              return;
+              handleCloseStory()
+              return
             }
 
-            const updatedUser = updatedStories[currentUserIndex];
+            const updatedUser = updatedStories[currentUserIndex]
 
             // If this was the last story for this user, move to next user or close
             if (updatedUser.stories.length === 0) {
               if (currentUserIndex < updatedStories.length - 1) {
                 // Move to next user
-                setCurrentUserIndex(currentUserIndex + 1);
-                setCurrentStoryIndex(0);
+                setCurrentUserIndex(currentUserIndex + 1)
+                setCurrentStoryIndex(0)
               } else {
                 // No more stories, close viewer
-                handleCloseStory();
+                handleCloseStory()
               }
             } else {
               // Adjust current story index if needed
               if (currentStoryIndex >= updatedUser.stories.length) {
-                setCurrentStoryIndex(updatedUser.stories.length - 1);
+                setCurrentStoryIndex(updatedUser.stories.length - 1)
               }
               // Stay on current story (index may have shifted)
             }
           } catch (error: any) {
-            console.error('Error deleting story:', error);
-            showDialog('error', error?.response?.data?.message || 'Failed to delete story', 'Error');
+            console.error('Error deleting story:', error)
+            showDialog('error', error?.response?.data?.message || 'Failed to delete story', 'Error')
           } finally {
-            setDeletingStoryId(null);
+            setDeletingStoryId(null)
           }
         },
       },
@@ -383,16 +383,16 @@ export default function StoriesScreen() {
         text: 'Cancel',
         onPress: () => setDialogVisible(false),
       }
-    );
-  };
+    )
+  }
 
   // Handle story like
   const handleStoryLike = useCallback(async (storyId: string) => {
-    if (!token || !storyId) return;
+    if (!token || !storyId) return
 
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const result = await storyAPI.likeStory(storyId, token);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      const result = await storyAPI.likeStory(storyId, token)
 
       // Update local likes state
       setStoryLikes(prev => ({
@@ -401,338 +401,338 @@ export default function StoriesScreen() {
           isLiked: result.isLiked,
           likesCount: result.likesCount
         }
-      }));
+      }))
     } catch (error: any) {
-      console.error('Error liking story:', error);
-      showDialog('error', error?.response?.data?.message || 'Failed to like story', 'Error');
+      console.error('Error liking story:', error)
+      showDialog('error', error?.response?.data?.message || 'Failed to like story', 'Error')
     }
-  }, [token]);
+  }, [token])
 
   // Handle getting story viewers - open modal immediately, fetch in background
   const handleGetViewers = useCallback(async (storyId: string) => {
-    if (!token || !storyId) return;
+    if (!token || !storyId) return
 
     // Open modal immediately
-    setShowViewers(true);
-    setLoadingViewers(true);
-    setStoryViewers([]); // Clear previous viewers
+    setShowViewers(true)
+    setLoadingViewers(true)
+    setStoryViewers([]) // Clear previous viewers
 
     // Fetch data in background
     try {
-      const result = await storyAPI.getStoryViewers(storyId, token);
-      setStoryViewers(result.viewers || []);
+      const result = await storyAPI.getStoryViewers(storyId, token)
+      setStoryViewers(result.viewers || [])
     } catch (error: any) {
-      console.error('Error getting story viewers:', error);
-      showDialog('error', error?.response?.data?.message || 'Failed to load viewers', 'Error');
+      console.error('Error getting story viewers:', error)
+      showDialog('error', error?.response?.data?.message || 'Failed to load viewers', 'Error')
       // Close modal on error
-      setShowViewers(false);
+      setShowViewers(false)
     } finally {
-      setLoadingViewers(false);
+      setLoadingViewers(false)
     }
-  }, [token]);
+  }, [token])
 
   // Load more friends stories
   const loadMoreFriends = useCallback(async () => {
-    if (loadingMoreFriends || !hasMoreFriends) return;
-    setLoadingMoreFriends(true);
-    const nextPage = friendsPage + 1;
-    setFriendsPage(nextPage);
-    await loadStories({ friends: nextPage }, true);
-    setLoadingMoreFriends(false);
-  }, [friendsPage, hasMoreFriends, loadingMoreFriends, loadStories]);
+    if (loadingMoreFriends || !hasMoreFriends) return
+    setLoadingMoreFriends(true)
+    const nextPage = friendsPage + 1
+    setFriendsPage(nextPage)
+    await loadStories({ friends: nextPage }, true)
+    setLoadingMoreFriends(false)
+  }, [friendsPage, hasMoreFriends, loadingMoreFriends, loadStories])
 
   // Load more discover stories
   const loadMoreDiscover = useCallback(async () => {
-    if (loadingMoreDiscover || !hasMoreDiscover) return;
-    setLoadingMoreDiscover(true);
-    const nextPage = discoverPage + 1;
-    setDiscoverPage(nextPage);
-    await loadStories({ discover: nextPage }, true);
-    setLoadingMoreDiscover(false);
-  }, [discoverPage, hasMoreDiscover, loadingMoreDiscover, loadStories]);
+    if (loadingMoreDiscover || !hasMoreDiscover) return
+    setLoadingMoreDiscover(true)
+    const nextPage = discoverPage + 1
+    setDiscoverPage(nextPage)
+    await loadStories({ discover: nextPage }, true)
+    setLoadingMoreDiscover(false)
+  }, [discoverPage, hasMoreDiscover, loadingMoreDiscover, loadStories])
 
   const handleStorySeen = useCallback(async (storyId: string) => {
-    if (!token || !storyId) return;
+    if (!token || !storyId) return
 
     // Prevent duplicate view tracking
     if (viewedStoryIds.has(storyId)) {
-      return;
+      return
     }
 
     try {
-      await storyAPI.viewStory(storyId, token);
+      await storyAPI.viewStory(storyId, token)
 
       // Mark as viewed in local state to prevent duplicates
-      setViewedStoryIds(prev => new Set(prev).add(storyId));
+      setViewedStoryIds(prev => new Set(prev).add(storyId))
 
       // Update story view status in store
-      updateStoryViewStatus(storyId);
+      updateStoryViewStatus(storyId)
 
       // Refresh stories to update view status after a short delay
       setTimeout(() => {
-        loadStories();
-      }, 500);
+        loadStories()
+      }, 500)
     } catch (error) {
-      console.error('Error marking story as viewed:', error);
+      console.error('Error marking story as viewed:', error)
     }
-  }, [token, loadStories, viewedStoryIds, updateStoryViewStatus]);
+  }, [token, loadStories, viewedStoryIds, updateStoryViewStatus])
 
   // Get all stories in a flat list for story viewer (only from selected category)
   const getAllStories = useCallback(() => {
     if (!categorizedStories || !selectedCategory) {
       // Fallback to old stories array
-      if (selectedStoryIndex === null) return [];
-      return stories.slice(selectedStoryIndex);
+      if (selectedStoryIndex === null) return []
+      return stories.slice(selectedStoryIndex)
     }
 
     // Only return stories from the selected category
-    let categoryStories: StoryItem[] = [];
+    let categoryStories: StoryItem[] = []
 
     if (selectedCategory === 'myStory' && categorizedStories.myStory) {
-      categoryStories = [categorizedStories.myStory];
+      categoryStories = [categorizedStories.myStory]
     } else if (selectedCategory === 'friends') {
-      categoryStories = categorizedStories.friends;
+      categoryStories = categorizedStories.friends
     } else if (selectedCategory === 'discover') {
-      categoryStories = categorizedStories.discover;
+      categoryStories = categorizedStories.discover
     }
 
-    if (selectedStoryIndex === null) return categoryStories;
+    if (selectedStoryIndex === null) return categoryStories
     // Show stories from selected index onwards (including selected)
-    return categoryStories.slice(selectedStoryIndex);
-  }, [categorizedStories, stories, selectedStoryIndex, selectedCategory]);
+    return categoryStories.slice(selectedStoryIndex)
+  }, [categorizedStories, stories, selectedStoryIndex, selectedCategory])
 
   // Get current story data
   const getCurrentStory = useCallback(() => {
-    const allStories = getAllStories();
-    if (allStories.length === 0 || currentUserIndex >= allStories.length) return null;
-    const user = allStories[currentUserIndex];
-    if (user.stories.length === 0 || currentStoryIndex >= user.stories.length) return null;
-    return { user, story: user.stories[currentStoryIndex] };
-  }, [getAllStories, currentUserIndex, currentStoryIndex]);
+    const allStories = getAllStories()
+    if (allStories.length === 0 || currentUserIndex >= allStories.length) return null
+    const user = allStories[currentUserIndex]
+    if (user.stories.length === 0 || currentStoryIndex >= user.stories.length) return null
+    return { user, story: user.stories[currentStoryIndex] }
+  }, [getAllStories, currentUserIndex, currentStoryIndex])
 
   // Navigate to next story
   const nextStory = useCallback(async () => {
-    progressAnim.stopAnimation();
-    const allStories = getAllStories();
+    progressAnim.stopAnimation()
+    const allStories = getAllStories()
     if (allStories.length === 0) {
-      handleCloseStory();
-      return;
+      handleCloseStory()
+      return
     }
 
-    const currentUser = allStories[currentUserIndex];
+    const currentUser = allStories[currentUserIndex]
     if (currentStoryIndex < currentUser.stories.length - 1) {
       // Next story in same user
-      setCurrentStoryIndex(currentStoryIndex + 1);
+      setCurrentStoryIndex(currentStoryIndex + 1)
     } else if (currentUserIndex < allStories.length - 1) {
       // Next user
-      setCurrentUserIndex(currentUserIndex + 1);
-      setCurrentStoryIndex(0);
+      setCurrentUserIndex(currentUserIndex + 1)
+      setCurrentStoryIndex(0)
     } else {
       // All stories done
-      handleCloseStory();
+      handleCloseStory()
     }
-  }, [getAllStories, currentUserIndex, currentStoryIndex, progressAnim, handleCloseStory]);
+  }, [getAllStories, currentUserIndex, currentStoryIndex, progressAnim, handleCloseStory])
 
   // Navigate to previous story
   const prevStory = useCallback(async () => {
-    progressAnim.stopAnimation();
+    progressAnim.stopAnimation()
     if (currentStoryIndex > 0) {
-      setCurrentStoryIndex(currentStoryIndex - 1);
+      setCurrentStoryIndex(currentStoryIndex - 1)
     } else if (currentUserIndex > 0) {
-      const allStories = getAllStories();
-      const prevUser = allStories[currentUserIndex - 1];
-      setCurrentUserIndex(currentUserIndex - 1);
-      setCurrentStoryIndex(prevUser.stories.length - 1);
+      const allStories = getAllStories()
+      const prevUser = allStories[currentUserIndex - 1]
+      setCurrentUserIndex(currentUserIndex - 1)
+      setCurrentStoryIndex(prevUser.stories.length - 1)
     }
-  }, [getAllStories, currentUserIndex, currentStoryIndex, progressAnim]);
+  }, [getAllStories, currentUserIndex, currentStoryIndex, progressAnim])
 
   // For videos, progress is driven by the video player component using currentTime/duration.
 
   // Start story progress animation
   // Pause story progress
   const pauseStoryProgress = useCallback(() => {
-    if (isPausedRef.current) return;
+    if (isPausedRef.current) return
 
-    const current = getCurrentStory();
-    if (!current) return;
+    const current = getCurrentStory()
+    if (!current) return
 
-    isPausedRef.current = true;
+    isPausedRef.current = true
 
     // Save current progress value from the ref (updated by listener)
-    pausedProgressRef.current = currentProgressRef.current;
+    pausedProgressRef.current = currentProgressRef.current
 
     // Stop animation
-    progressAnim.stopAnimation();
+    progressAnim.stopAnimation()
 
     // Stop timer if running
     if (storyTimer.current) {
-      clearTimeout(storyTimer.current);
-      storyTimer.current = null;
+      clearTimeout(storyTimer.current)
+      storyTimer.current = null
     }
 
     // For videos, the player component handles pausing via React lifecycle.
-  }, [getCurrentStory, progressAnim]);
+  }, [getCurrentStory, progressAnim])
 
   // Resume story progress
   const resumeStoryProgress = useCallback(() => {
-    if (!isPausedRef.current) return;
+    if (!isPausedRef.current) return
 
-    const current = getCurrentStory();
-    if (!current) return;
+    const current = getCurrentStory()
+    if (!current) return
 
-    isPausedRef.current = false;
-    const pausedValue = pausedProgressRef.current ?? 0;
-    pausedProgressRef.current = null;
+    isPausedRef.current = false
+    const pausedValue = pausedProgressRef.current ?? 0
+    pausedProgressRef.current = null
 
     // Resume animation from where it paused
-    const remainingDuration = (current.story.duration * 1000 || STORY_DURATION) * (1 - pausedValue);
+    const remainingDuration = (current.story.duration * 1000 || STORY_DURATION) * (1 - pausedValue)
     if (remainingDuration > 0) {
-      progressAnim.setValue(pausedValue);
+      progressAnim.setValue(pausedValue)
       const animation = Animated.timing(progressAnim, {
         toValue: 1,
         duration: remainingDuration,
         useNativeDriver: false,
-      });
+      })
 
       animation.start(({ finished }) => {
         if (finished) {
-          nextStory();
+          nextStory()
         }
-      });
+      })
 
-      return () => animation.stop();
+      return () => animation.stop()
     } else {
       // If no time remaining, go to next story
-      nextStory();
+      nextStory()
     }
-  }, [getCurrentStory, progressAnim, nextStory]);
+  }, [getCurrentStory, progressAnim, nextStory])
 
   const startStoryProgress = useCallback(() => {
-    const current = getCurrentStory();
-    if (!current) return;
+    const current = getCurrentStory()
+    if (!current) return
 
     // Mark story as viewed
     if (!current.story.isSeen && !current.user.isMe) {
-      handleStorySeen(current.story.id);
+      handleStorySeen(current.story.id)
     }
 
     // Set up progress listener to track current value
     if (progressListenerRef.current) {
-      progressAnim.removeListener(progressListenerRef.current);
+      progressAnim.removeListener(progressListenerRef.current)
     }
     progressListenerRef.current = progressAnim.addListener(({ value }) => {
-      currentProgressRef.current = value;
-    });
+      currentProgressRef.current = value
+    })
 
     // For videos, let the video control the progress
     if (current.story.type === 'video') {
       // Video will handle its own playback and completion
       return () => {
         if (progressListenerRef.current) {
-          progressAnim.removeListener(progressListenerRef.current);
-          progressListenerRef.current = null;
+          progressAnim.removeListener(progressListenerRef.current)
+          progressListenerRef.current = null
         }
-      };
+      }
     }
 
     // For images, use animation
-    progressAnim.setValue(0);
-    currentProgressRef.current = 0;
+    progressAnim.setValue(0)
+    currentProgressRef.current = 0
     const animation = Animated.timing(progressAnim, {
       toValue: 1,
       duration: current.story.duration * 1000 || STORY_DURATION,
       useNativeDriver: false,
-    });
+    })
 
     animation.start(({ finished }) => {
       if (finished && !isPausedRef.current) {
-        nextStory();
+        nextStory()
       }
-    });
+    })
 
     return () => {
-      animation.stop();
+      animation.stop()
       if (progressListenerRef.current) {
-        progressAnim.removeListener(progressListenerRef.current);
-        progressListenerRef.current = null;
+        progressAnim.removeListener(progressListenerRef.current)
+        progressListenerRef.current = null
       }
-    };
-  }, [getCurrentStory, progressAnim, handleStorySeen, nextStory]);
+    }
+  }, [getCurrentStory, progressAnim, handleStorySeen, nextStory])
 
   // Handle story selection
   useEffect(() => {
     if (selectedStoryIndex !== null) {
-      setCurrentUserIndex(0);
-      setCurrentStoryIndex(0);
-      progressAnim.setValue(0);
-      setWasViewingStory(null);
-      isPausedRef.current = false;
-      pausedProgressRef.current = null;
+      setCurrentUserIndex(0)
+      setCurrentStoryIndex(0)
+      progressAnim.setValue(0)
+      setWasViewingStory(null)
+      isPausedRef.current = false
+      pausedProgressRef.current = null
     } else {
-      progressAnim.stopAnimation();
-      isPausedRef.current = false;
-      pausedProgressRef.current = null;
+      progressAnim.stopAnimation()
+      isPausedRef.current = false
+      pausedProgressRef.current = null
     }
-  }, [selectedStoryIndex, progressAnim]);
+  }, [selectedStoryIndex, progressAnim])
 
   // Pause/resume story when viewers modal opens/closes
   useEffect(() => {
-    if (selectedStoryIndex === null) return;
+    if (selectedStoryIndex === null) return
 
     if (showViewers) {
-      pauseStoryProgress();
+      pauseStoryProgress()
     } else {
       // Only resume if we were paused (not if story just changed)
       if (isPausedRef.current) {
-        resumeStoryProgress();
+        resumeStoryProgress()
       }
     }
-  }, [showViewers, selectedStoryIndex, pauseStoryProgress, resumeStoryProgress]);
+  }, [showViewers, selectedStoryIndex, pauseStoryProgress, resumeStoryProgress])
 
   useFocusEffect(
     useCallback(() => {
       if (wasViewingStory !== null && selectedStoryIndex === null) {
         setTimeout(() => {
-          setSelectedStoryIndex(wasViewingStory);
-          setWasViewingStory(null);
-        }, 100);
+          setSelectedStoryIndex(wasViewingStory)
+          setWasViewingStory(null)
+        }, 100)
       }
 
       return () => {
         if (selectedStoryIndex !== null) {
           if (storyTimer.current) {
-            clearTimeout(storyTimer.current);
-            storyTimer.current = null;
+            clearTimeout(storyTimer.current)
+            storyTimer.current = null
           }
-          progressAnim.stopAnimation();
+          progressAnim.stopAnimation()
         }
-      };
+      }
     }, [wasViewingStory, selectedStoryIndex, progressAnim])
-  );
+  )
 
   useEffect(() => {
-    if (selectedStoryIndex === null) return;
+    if (selectedStoryIndex === null) return
 
-    const current = getCurrentStory();
-    if (!current) return;
+    const current = getCurrentStory()
+    if (!current) return
 
-    progressAnim.setValue(0);
+    progressAnim.setValue(0)
 
     if (current.story.type !== 'video') {
-      const cleanup = startStoryProgress();
+      const cleanup = startStoryProgress()
       return () => {
-        cleanup?.();
-      };
+        cleanup?.()
+      }
     }
 
     return () => {
       if (storyTimer.current) {
-        clearTimeout(storyTimer.current);
-        storyTimer.current = null;
+        clearTimeout(storyTimer.current)
+        storyTimer.current = null
       }
-      progressAnim.stopAnimation();
-    };
-  }, [selectedStoryIndex, currentUserIndex, currentStoryIndex, startStoryProgress, progressAnim]);
+      progressAnim.stopAnimation()
+    }
+  }, [selectedStoryIndex, currentUserIndex, currentStoryIndex, startStoryProgress, progressAnim])
 
   // No extra cleanup needed for video player; it is managed by React lifecycle.
 
@@ -740,120 +740,103 @@ export default function StoriesScreen() {
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10;
+        return Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10
       },
       onPanResponderRelease: (_, gestureState) => {
-        const { dx, dy } = gestureState;
-        const swipeThreshold = 50;
+        const { dx, dy } = gestureState
+        const swipeThreshold = 50
 
         if (Math.abs(dy) > Math.abs(dx) && dy > swipeThreshold) {
           // Swipe down to close
-          handleCloseStory();
+          handleCloseStory()
         } else if (dx > swipeThreshold) {
           // Swipe right - previous story
-          prevStory();
+          prevStory()
         } else if (dx < -swipeThreshold) {
           // Swipe left - next story
-          nextStory();
+          nextStory()
         }
       },
     })
-  ).current;
+  ).current
 
 
 
   useEffect(() => {
     if (selectedStoryIndex !== null) {
-      const current = getCurrentStory();
+      const current = getCurrentStory()
       if (!current) {
         const timer = setTimeout(() => {
-          handleCloseStory();
-        }, 0);
-        return () => clearTimeout(timer);
+          handleCloseStory()
+        }, 0)
+        return () => clearTimeout(timer)
       }
     }
-  }, [selectedStoryIndex, getCurrentStory, handleCloseStory]);
+  }, [selectedStoryIndex, getCurrentStory, handleCloseStory])
 
   if (selectedStoryIndex !== null) {
-    const allStories = getAllStories();
-    const current = getCurrentStory();
+    const allStories = getAllStories()
+    const current = getCurrentStory()
 
     if (!current) {
-      return null;
+      return null
     }
 
-    const { user, story } = current;
+    const { user, story } = current
     const progressWidth = progressAnim.interpolate({
       inputRange: [0, 1],
       outputRange: ['0%', '100%'],
-    });
+    })
 
-    const handleProfilePress = async () => {
+    const handleProfilePress = (user_id: string) => {
       if (storyTimer.current) {
-        clearTimeout(storyTimer.current);
-        storyTimer.current = null;
+        clearTimeout(storyTimer.current)
+        storyTimer.current = null
       }
-      progressAnim.stopAnimation();
+      progressAnim.stopAnimation()
+      setWasViewingStory(selectedStoryIndex)
 
-      setWasViewingStory(selectedStoryIndex);
-
-      if (user.isMe) {
+      if (user_id === dbUser?.user_id) {
         router.push({
           pathname: '/(home)/userProfile' as any,
           params: {
-            userId: user.id,
+            userId: user_id,        
             returnToStory: 'true'
           }
-        });
-        return;
+        })
+        return
       }
 
-      // Fetch full user details from API
-      try {
-        if (!token) {
-          showDialog('error', 'Please log in to view profiles', 'Error');
-          return;
+      router.push({
+        pathname: '/userProfile' as any,
+        params: {
+          userId: user_id,          
+          returnToStory: 'true'
         }
-
-        const response = await getUserByIdAPI(user.id, token);
-        if (response.success && response.data) {
-          router.push({
-            pathname: '/userProfile' as any,
-            params: {
-              userId: response.data.user_id,
-              returnToStory: 'true'
-            }
-          });
-        } else {
-          showDialog('error', 'Failed to load user profile', 'Error');
-        }
-      } catch (error: any) {
-        console.error('Error fetching user profile:', error);
-        showDialog('error', error?.response?.data?.message || 'Failed to load user profile', 'Error');
-      }
-    };
+      })
+    }
 
     const StoryVideo = () => {
       const player = useVideoPlayer(story.url, (p) => {
-        p.loop = false;
-        p.play();
-        p.timeUpdateEventInterval = 0.25;
-      });
+        p.loop = false
+        p.play()
+        p.timeUpdateEventInterval = 0.25
+      })
 
-      const timeUpdate = useEvent(player, 'timeUpdate');
+      const timeUpdate = useEvent(player, 'timeUpdate')
 
       useEffect(() => {
-        if (!timeUpdate || isPausedRef.current) return;
-        const durationSeconds = player.duration || story.duration || STORY_DURATION / 1000;
+        if (!timeUpdate || isPausedRef.current) return
+        const durationSeconds = player.duration || story.duration || STORY_DURATION / 1000
         if (durationSeconds > 0) {
-          const progress = timeUpdate.currentTime / durationSeconds;
-          progressAnim.setValue(progress);
+          const progress = timeUpdate.currentTime / durationSeconds
+          progressAnim.setValue(progress)
         }
-      }, [timeUpdate]);
+      }, [timeUpdate])
 
       useEventListener(player, 'playToEnd', () => {
-        nextStory();
-      });
+        nextStory()
+      })
 
       return (
         <VideoView
@@ -861,8 +844,8 @@ export default function StoriesScreen() {
           style={styles.storyImage}
           contentFit="contain"
         />
-      );
-    };
+      )
+    }
 
     return (
       <>
@@ -913,7 +896,7 @@ export default function StoriesScreen() {
               {/* Profile Section */}
               <TouchableOpacity
                 style={styles.storyHeaderLeft}
-                onPress={handleProfilePress}
+                onPress={() => handleProfilePress(user.id)}
                 activeOpacity={0.7}
               >
                 <Image source={{ uri: user.avatar }} style={styles.storyHeaderAvatar} />
@@ -1061,8 +1044,8 @@ export default function StoriesScreen() {
                       <TouchableOpacity
                         style={styles.viewerItem}
                         onPress={() => {
-                          setShowViewers(false);
-                          handleProfilePress();
+                          setShowViewers(false)
+                          handleProfilePress(item.id)
                         }}
                       >
                         <View style={styles.viewerAvatarContainer}>
@@ -1083,28 +1066,28 @@ export default function StoriesScreen() {
               </View>
             </View>
           </Modal>
-        </View>
+        </View >
       </>
-    );
+    )
   }
 
   // Render discover story card (Snapchat-style) - Enhanced design
   const renderDiscoverCard = ({ item, index }: { item: StoryItem; index: number }) => {
-    const hasUnviewed = item.stories.some(story => !story.isSeen);
-    const firstStory = item.stories[0];
-    const storyCount = item.stories.length;
+    const hasUnviewed = item.stories.some(story => !story.isSeen)
+    const firstStory = item.stories[0]
+    const storyCount = item.stories.length
 
     // If first story is a video, use user's avatar as thumbnail
     const thumbnailUrl = firstStory?.type === 'video'
       ? (item.avatar || 'https://via.placeholder.com/200')
-      : (firstStory?.url || item.avatar || 'https://via.placeholder.com/200');
+      : (firstStory?.url || item.avatar || 'https://via.placeholder.com/200')
 
     return (
       <TouchableOpacity
         style={styles.discoverCard}
         onPress={() => {
           if (item.stories.length > 0) {
-            handleStoryPress(item, 'discover', index);
+            handleStoryPress(item, 'discover', index)
           }
         }}
         activeOpacity={0.85}
@@ -1138,8 +1121,8 @@ export default function StoriesScreen() {
           </View>
         </LinearGradient>
       </TouchableOpacity>
-    );
-  };
+    )
+  }
 
   if (isLoading && !categorizedStories) {
     return (
@@ -1148,14 +1131,14 @@ export default function StoriesScreen() {
           <ActivityIndicator size="large" color={Colors.primaryBackgroundColor} />
         </View>
       </SafeAreaView>
-    );
+    )
   }
 
   const hasAnyStories = categorizedStories && (
     (categorizedStories.myStory && categorizedStories.myStory.stories.length > 0) ||
     categorizedStories.friends.length > 0 ||
     categorizedStories.discover.length > 0
-  );
+  )
 
   return (
     <>
@@ -1211,16 +1194,16 @@ export default function StoriesScreen() {
                   ]}
                   extraData={categorizedStories} // Force re-render when stories change
                   renderItem={({ item, index }) => {
-                    const isMyStory = item.isMe;
-                    const hasStories = item.stories.length > 0;
+                    const isMyStory = item.isMe
+                    const hasStories = item.stories.length > 0
                     // Check if any story from this user hasn't been viewed
-                    const hasUnviewed = hasStories && item.stories.some(story => !story.isSeen);
+                    const hasUnviewed = hasStories && item.stories.some(story => !story.isSeen)
 
                     const getFirstName = () => {
-                      if (isMyStory) return 'Your Story';
-                      const nameParts = item.username.trim().split(/\s+/);
-                      return nameParts[0] || item.username;
-                    };
+                      if (isMyStory) return 'Your Story'
+                      const nameParts = item.username.trim().split(/\s+/)
+                      return nameParts[0] || item.username
+                    }
 
                     return (
                       <View style={styles.storyItem}>
@@ -1229,14 +1212,14 @@ export default function StoriesScreen() {
                           onPress={() => {
                             if (isMyStory) {
                               if (hasStories) {
-                                handleStoryPress(item, 'myStory', 0);
+                                handleStoryPress(item, 'myStory', 0)
                               } else {
-                                handleAddStory();
+                                handleAddStory()
                               }
                             } else {
                               if (hasStories) {
-                                const friendIndex = categorizedStories.myStory ? index - 1 : index;
-                                handleStoryPress(item, 'friends', friendIndex);
+                                const friendIndex = categorizedStories.myStory ? index - 1 : index
+                                handleStoryPress(item, 'friends', friendIndex)
                               }
                             }
                           }}
@@ -1288,8 +1271,8 @@ export default function StoriesScreen() {
                             <TouchableOpacity
                               style={styles.addIconContainer}
                               onPress={(e) => {
-                                e.stopPropagation();
-                                handleAddStory();
+                                e.stopPropagation()
+                                handleAddStory()
                               }}
                               activeOpacity={0.7}
                             >
@@ -1303,12 +1286,12 @@ export default function StoriesScreen() {
                           {getFirstName()}
                         </ThemedText>
                       </View>
-                    );
+                    )
                   }}
                   keyExtractor={(item, index) => {
                     // Include viewed status in key to force re-render when status changes
-                    const viewedCount = item.stories.filter(s => s.isSeen).length;
-                    return `story-${item.id}-${index}-viewed-${viewedCount}`;
+                    const viewedCount = item.stories.filter(s => s.isSeen).length
+                    return `story-${item.id}-${index}-viewed-${viewedCount}`
                   }}
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.horizontalListContainer}
@@ -1366,7 +1349,7 @@ export default function StoriesScreen() {
         )}
       </SafeAreaView>
     </>
-  );
+  )
 }
 
 const styles = StyleSheet.create({

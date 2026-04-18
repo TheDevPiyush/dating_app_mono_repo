@@ -9,6 +9,7 @@ import { messageAPI } from '@/APIs/messageAPIs';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Home, MessageCircle, Heart, Camera, Settings, Compass } from 'lucide-react-native';
+import { Phone } from 'react-native-feather';
 
 // Wrapper component for chat icon with badge
 function ChatIconWithBadge({ color, focused }: { color: string; focused: boolean }) {
@@ -123,10 +124,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="(explore)"
         options={{
-          title: t('tabs.explore'),
+          title: "Connect",
           tabBarIcon: ({ focused }) => (
-            <Compass
-              size={26}
+            <Phone
               color={focused ? Colors.primaryBackgroundColor : '#D1D1D6'}
               strokeWidth={focused ? 2.5 : 2}
             />

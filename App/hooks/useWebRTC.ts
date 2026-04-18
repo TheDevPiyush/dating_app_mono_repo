@@ -299,9 +299,6 @@ export function useWebRTC(callTypeFilter?: 'voice' | 'video') {
               reject(new Error('Call no longer active'));
               return;
             }
-            // Set 'connecting' BEFORE setRemoteDescription so that ontrack
-            // (which fires synchronously during setRemoteDescription) can
-            // advance to 'connected' without being overwritten afterwards.
             setStatus('connecting');
             await pc.setRemoteDescription(new RTCSessionDescription(data.answer as any));
             remoteDescSetRef.current = true;

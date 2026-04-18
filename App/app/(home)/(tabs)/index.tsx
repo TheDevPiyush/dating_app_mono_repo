@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { View, Linking, Platform, TouchableOpacity, Animated, Easing, StyleSheet } from 'react-native'
+import { View, Linking, Platform, Pressable } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import SwipeDeck, { SwipeAction } from '@/components/SwipeDeck'
 import { ThemedText } from '@/components/ThemedText'
@@ -17,12 +17,12 @@ import * as Notifications from 'expo-notifications'
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio'
 import { useFocusEffect } from '@react-navigation/native'
 import * as Device from 'expo-device'
-import Ionicons from '@expo/vector-icons/build/Ionicons'
-import CustomDialog, { DialogType } from '@/components/CustomDialog'
+import CustomDialog from '@/components/CustomDialog'
 import { getActiveAnnouncementAPI } from '@/APIs/announcementAPIs'
 import { useAuth } from '@/hooks/useAuth'
 import CircularLoader from '@/components/CircularLoader'
-import { supabase } from '@/config/supabaseConfig'
+import { useMessagingStore } from '@/store/messagingStore'
+import { Send } from 'lucide-react-native'
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -35,7 +35,7 @@ Notifications.setNotificationHandler({
 })
 
 export default function index() {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   const router = useRouter()
 
   const { getRecommendedUsers, updateUser } = useUser()
@@ -95,7 +95,7 @@ export default function index() {
           const a = reverse[0]
           city = [a.city, a.region, a.country].filter(Boolean).join(', ') || undefined
         }
-      } catch {}
+      } catch { }
 
       const sig = `${loc.coords.latitude.toFixed(6)},${loc.coords.longitude.toFixed(6)}|${city || ''}`
       if (lastLocationSentRef.current === sig) return
@@ -310,7 +310,7 @@ export default function index() {
         setCategorizedStories(categorizedStories)
       } else if (Array.isArray(data)) {
         // Fallback to old structure (flat array)
-        const storiesList: StoryItem[] = data;
+        const storiesList: StoryItem[] = data
         const myStoryIndex = storiesList.findIndex(item => item.isMe)
 
         const currentUserId = dbUser?.user_id
@@ -344,7 +344,7 @@ export default function index() {
           discover: []
         })
       } else {
-        console.warn('Unexpected data format from stories API:', data);
+        console.warn('Unexpected data format from stories API:', data)
         setCategorizedStories({
           myStory: dbUser?.user_id ? {
             id: dbUser.user_id,
@@ -355,7 +355,7 @@ export default function index() {
           } : null,
           friends: [],
           discover: []
-        });
+        })
       }
     } catch (error: any) {
       if (dbUser?.user_id) {
@@ -402,10 +402,10 @@ export default function index() {
 
   const onCardPress = (user: RecommendedUser) => {
     // Use _id from RecommendedUser type, with fallback to any user_id property that might exist
-    const userId = (user as any).user_id || user._id;
+    const userId = (user as any).user_id || user._id
     if (!userId) {
-      console.error('No user ID found in user object:', user);
-      return;
+      console.error('No user ID found in user object:', user)
+      return
     }
     router.push({
       pathname: '/userProfile' as any,
@@ -589,6 +589,66 @@ export default function index() {
     await initializeProfiles()
   }
 
+  function ChatIconWithBadge() {
+
+    const totalUnreadCount = useMessagingStore((state) => state.totalUnreadCount)
+    const backgroundColor = totalUnreadCount > 0 ? Colors.primaryBackgroundColor : 'transparent'
+
+    return (
+      <Pressable
+        onPress={() => {
+          router.push('/(home)/(tabs)/(chats)')
+        }}
+        style={{
+          position: 'relative',
+          backgroundColor: totalUnreadCount > 0 ? Colors.primaryBackgroundColor : 'transparent',
+          borderRadius: 25,
+          padding: 6,
+          flexDirection: 'row',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+
+        <Send
+          size={16}
+          color={totalUnreadCount > 0 ? Colors.light.background : Colors.primaryBackgroundColor}
+        />
+
+        {totalUnreadCount > 0 && (
+          <View
+            style={{
+              position: 'absolute',
+              top: -5,
+              right: -11,
+              backgroundColor: Colors.primaryBackgroundColor,
+              borderRadius: 15,
+              minWidth: 18,
+              height: 18,
+              justifyContent: 'center',
+              alignItems: 'center',
+              opacity: 0.9,
+              borderWidth: 1.5,
+              borderColor: Colors.light.background,
+            }}
+          >
+            <ThemedText
+              style={{
+                color: Colors.light.background,
+                fontSize: 10,
+                fontWeight: 'bold',
+                lineHeight: 18,
+                textAlignVertical: 'center',
+                includeFontPadding: false,
+              }}
+            >
+              {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+            </ThemedText>
+          </View>
+        )}
+      </Pressable>
+    )
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.parentBackgroundColor }}>
       <CustomDialog
@@ -640,9 +700,14 @@ export default function index() {
 
           <ThemedText type='title' style={{ color: Colors.primaryBackgroundColor }}>{t('home.discover')}</ThemedText>
 
-          <TouchableOpacity onPress={handleRefreshProfiles}>
-            <Ionicons name="refresh-outline" size={24} color={Colors.primary.red} />
-          </TouchableOpacity>
+
+          <View style={{ flexDirection: "row" }}>
+            {/* <TouchableOpacity onPress={handleRefreshProfiles}>
+              <Ionicons name="refresh-outline" size={24} color={Colors.primary.red} />
+            </TouchableOpacity> */}
+            {ChatIconWithBadge()}
+          </View>
+
         </View>
 
 

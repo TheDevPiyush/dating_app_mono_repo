@@ -132,7 +132,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     const screenShotAllow = async () => {
-      if (dbUser?.isAdmin) {
+      if (dbUser?.isAdmin || process.env.EXPO_PUBLIC_ALLOW_SCREEN_SHOT) {
         await ScreenCapture.allowScreenCaptureAsync();
       }
       else {
