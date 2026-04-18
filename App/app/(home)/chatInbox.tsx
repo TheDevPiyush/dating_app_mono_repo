@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react'
 import {
   View,
   FlatList,
@@ -7,45 +7,46 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-} from 'react-native';
-import { ChatListItem } from '@/components/ChatListItem';
-import { InboxItem } from '@/hooks/useSocket';
-import { useMessagingStore } from '@/store/messagingStore';
-import { useFocusEffect } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors } from '@/constants/Colors';
-import { ThemedText } from '@/components/ThemedText';
-import CustomLoader from '@/components/CustomLoader';
-import { useTranslation } from 'react-i18next';
+} from 'react-native'
+import { ChatListItem } from '@/components/ChatListItem'
+import { InboxItem } from '@/hooks/useSocket'
+import { useMessagingStore } from '@/store/messagingStore'
+import { useFocusEffect } from '@react-navigation/native'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { Colors } from '@/constants/Colors'
+import { ThemedText } from '@/components/ThemedText'
+import CustomLoader from '@/components/CustomLoader'
+import { useTranslation } from 'react-i18next'
+import CustomBackButton from '@/components/CustomBackButton'
 
 export default function ChatsScreen() {
-  const { t } = useTranslation();
-  const { inbox, isSocketConnected, triggerReload } = useMessagingStore();
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { t } = useTranslation()
+  const { inbox, isSocketConnected, triggerReload } = useMessagingStore()
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
   useFocusEffect(
     useCallback(() => {
-      const { inbox } = useMessagingStore.getState();
+      const { inbox } = useMessagingStore.getState()
       if (inbox.length === 0 && isSocketConnected) {
-        setLoading(false);
+        setLoading(false)
       } else if (inbox.length > 0) {
-        setLoading(false);
+        setLoading(false)
       }
     }, [isSocketConnected])
-  );
+  )
 
   const handleRefresh = async () => {
-    setRefreshing(true);
-    triggerReload();
+    setRefreshing(true)
+    triggerReload()
     setTimeout(() => {
-      setRefreshing(false);
-    }, 500);
-  };
+      setRefreshing(false)
+    }, 500)
+  }
 
   const renderItem = ({ item }: { item: InboxItem }) => (
     <ChatListItem item={item} />
-  );
+  )
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
@@ -54,13 +55,14 @@ export default function ChatsScreen() {
         {t('chats.startSwiping')}
       </ThemedText>
     </View>
-  );
+  )
 
   const renderHeader = () => (
     <View style={styles.header}>
+      <CustomBackButton />
       <ThemedText type="title" style={styles.headerTitle}>{t('chats.messages')}</ThemedText>
     </View>
-  );
+  )
 
   if (loading && inbox.length === 0) {
     return (
@@ -72,7 +74,7 @@ export default function ChatsScreen() {
       }}>
         <ActivityIndicator size="large" color={Colors.primaryBackgroundColor} />
       </SafeAreaView>
-    );
+    )
   }
 
   return (
@@ -100,7 +102,7 @@ export default function ChatsScreen() {
         />
       </SafeAreaView>
     </KeyboardAvoidingView>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -114,6 +116,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
+    flexDirection: "row",
+    alignItems: 'center',
+    gap: 10,
     paddingHorizontal: 20,
     paddingVertical: 16,
     backgroundColor: Colors.parentBackgroundColor,
@@ -158,4 +163,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
   },
-});
+})

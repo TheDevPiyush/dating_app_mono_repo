@@ -1,16 +1,20 @@
-import 'dotenv/config';
+import 'dotenv/config'
 
 export default {
   expo: {
     name: "Pookiey",
     slug: "pookieycom",
-    version: "1.0.3",
+    version: "1.0.8",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "pookiey",
     userInterfaceStyle: "light",
     newArchEnabled: false,
     platforms: ["ios", "android"],
+    notification: {
+      icon: "./assets/images/icon.png",
+      color: "#ffffff",
+    },
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.pookiey.pookiey",
@@ -18,9 +22,9 @@ export default {
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         NSLocationWhenInUseUsageDescription:
-          "Pookiey needs your location to show you matches nearby.",
+          "Pookiey needs your location to show you people nearby.",
         NSLocationAlwaysUsageDescription:
-          "Pookiey needs your location to show you matches nearby.",
+          "Pookiey needs your location to show you people nearby.",
       },
       config: {
         googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
@@ -63,7 +67,7 @@ export default {
       [
         "expo-audio",
         {
-          "microphonePermission": "Allow Pookiey to access your microphone."
+          "microphonePermission": "Allow Pookiey to access your microphone for audio & video calls."
         }
       ],
 
@@ -80,11 +84,11 @@ export default {
         "expo-location",
         {
           locationAlwaysAndWhenInUsePermission:
-            "Allow Pookiey to use your location to show you matches nearby.",
+            "Allow Pookiey to use your location to show you people nearby.",
           locationAlwaysPermission:
-            "Allow Pookiey to use your location to show you matches nearby.",
+            "Allow Pookiey to use your location to show you people nearby.",
           locationWhenInUsePermission:
-            "Allow Pookiey to use your location to show you matches nearby.",
+            "Allow Pookiey to use your location to show you people nearby.",
         },
       ],
 
@@ -107,11 +111,12 @@ export default {
       [
         "expo-media-library",
         {
-          photosPermission: "Allow Pookiey to access your photos to save stories.",
+          photosPermission: "Allow Pookiey to access your photos.",
           savePhotosPermission: "Allow Pookiey to save photos to your gallery.",
           isAccessMediaLocationEnabled: true,
         },
       ],
+
       "expo-font",
       "expo-secure-store",
       "expo-web-browser",
@@ -136,4 +141,4 @@ export default {
 
     owner: "pookiey.official",
   },
-};
+}

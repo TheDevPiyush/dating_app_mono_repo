@@ -91,7 +91,7 @@ export async function sendMessageNotification({
       userId: otherUserId,
       messageText: messageText || '',
       messageType: messageType || 'text',
-      route: '/(home)/(tabs)/(chats)/chatRoom',
+      route: '/(home)/chatRoom',
     },
   });
 }

@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { View, Linking, Platform, Pressable } from 'react-native'
+import { View, Linking, Platform, Pressable, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import SwipeDeck, { SwipeAction } from '@/components/SwipeDeck'
 import { ThemedText } from '@/components/ThemedText'
@@ -592,25 +592,25 @@ export default function index() {
   function ChatIconWithBadge() {
 
     const totalUnreadCount = useMessagingStore((state) => state.totalUnreadCount)
-    const backgroundColor = totalUnreadCount > 0 ? Colors.primaryBackgroundColor : 'transparent'
 
     return (
-      <Pressable
+      <TouchableOpacity
+        activeOpacity={0.7}
         onPress={() => {
-          router.push('/(home)/(tabs)/(chats)')
+          router.push('/(home)/chatInbox')
         }}
         style={{
           position: 'relative',
           backgroundColor: totalUnreadCount > 0 ? Colors.primaryBackgroundColor : 'transparent',
           borderRadius: 25,
-          padding: 6,
+          padding: 10,
           flexDirection: 'row',
           justifyContent: 'center',
           alignItems: 'center'
         }}>
 
         <Send
-          size={16}
+          size={20}
           color={totalUnreadCount > 0 ? Colors.light.background : Colors.primaryBackgroundColor}
         />
 
@@ -619,11 +619,11 @@ export default function index() {
             style={{
               position: 'absolute',
               top: -5,
-              right: -11,
+              right: -8,
               backgroundColor: Colors.primaryBackgroundColor,
-              borderRadius: 15,
-              minWidth: 18,
-              height: 18,
+              borderRadius: 20,
+              minWidth: 20,
+              height: 20,
               justifyContent: 'center',
               alignItems: 'center',
               opacity: 0.9,
@@ -634,7 +634,7 @@ export default function index() {
             <ThemedText
               style={{
                 color: Colors.light.background,
-                fontSize: 10,
+                fontSize: 14,
                 fontWeight: 'bold',
                 lineHeight: 18,
                 textAlignVertical: 'center',
@@ -645,7 +645,7 @@ export default function index() {
             </ThemedText>
           </View>
         )}
-      </Pressable>
+      </TouchableOpacity>
     )
   }
 
@@ -702,9 +702,6 @@ export default function index() {
 
 
           <View style={{ flexDirection: "row" }}>
-            {/* <TouchableOpacity onPress={handleRefreshProfiles}>
-              <Ionicons name="refresh-outline" size={24} color={Colors.primary.red} />
-            </TouchableOpacity> */}
             {ChatIconWithBadge()}
           </View>
 

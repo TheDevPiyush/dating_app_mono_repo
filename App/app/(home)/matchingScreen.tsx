@@ -65,7 +65,7 @@ const MatchingScreen = () => {
 
     const handleSayHello = () => {
         router.replace({
-            pathname: '/(home)/(tabs)/(chats)',
+            pathname: '/(home)/chatInbox',
             params: {
                 matchId: match?._id,
                 user1: user1?._id,

@@ -275,7 +275,6 @@ const styles = StyleSheet.create({
   },
   codeActionText: {
     color: "#E94057",
-    fontWeight: "700",
     fontSize: 14,
   },
   heroSub: {
@@ -304,7 +303,6 @@ const styles = StyleSheet.create({
   ctaText: {
     color: "#E94057",
     fontSize: 15,
-    fontWeight: "700",
   },
   secondaryCta: {
     backgroundColor: "rgba(255,255,255,0.18)",
@@ -314,7 +312,6 @@ const styles = StyleSheet.create({
   secondaryCtaText: {
     color: Colors.primary.white,
     fontSize: 15,
-    fontWeight: "700",
   },
   errorText: {
     marginTop: 10,
@@ -346,7 +343,6 @@ const styles = StyleSheet.create({
   },
   stepNumber: {
     color: Colors.titleColor,
-    fontWeight: "700",
   },
   stepCopy: {
     flex: 1,
@@ -355,7 +351,7 @@ const styles = StyleSheet.create({
   stepTitle: {
     color: Colors.titleColor,
     fontSize: 16,
-    fontWeight: "700",
+    fontFamily:"HellixBold"
   },
   stepText: {
     color: Colors.text.secondary,
