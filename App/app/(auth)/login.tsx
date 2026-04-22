@@ -120,7 +120,7 @@ export default function LoginScreen() {
     try {
       const result = await signInWithGoogleMobile();
       if (result.error) {
-        showDialog('error', t('auth.googleSignInError'), result.error.message);
+        showDialog('error', "Google Sign-In Cancelled", "Sign-In was cancelled. Please try again.");
       }
     } catch (error) {
       showDialog('error', t('auth.error'), t('auth.unexpectedError'));
@@ -173,24 +173,30 @@ export default function LoginScreen() {
           { transform: [{ translateY: panelAnim }] },
         ]}
       >
+
+
         <TouchableOpacity
           activeOpacity={0.85}
-          style={styles.googleButton}
-          onPress={handleGoogleSignIn}
+          style={styles.PhoneButton}
+          onPress={() => router.push('/(auth)/loginwithPhone')}
           disabled={googleLoading || isDeepLinkProcessing}
         >
-          {(googleLoading)
-            ?
+          {isDeepLinkProcessing ?
             <ActivityIndicator size={"small"} color={'white'} />
             :
             <>
-              <AntDesign name="google" size={22} color="#fff" />
-              <ThemedText type='defaultSemiBold' style={styles.googleText}>
-                {t('auth.continueWithGoogle')}
+              <Foundation
+                name="telephone"
+                size={24}
+                color={Colors.text.light}
+              />
+              <ThemedText type='defaultSemiBold' style={styles.PhoneText}>
+                Continue with Phone
               </ThemedText>
             </>
           }
         </TouchableOpacity>
+
 
         <View style={styles.dividerContainer}>
           <View style={styles.divider} />
@@ -200,27 +206,27 @@ export default function LoginScreen() {
           <View style={styles.divider} />
         </View>
 
+
+
         <TouchableOpacity
           activeOpacity={0.85}
-          style={styles.emailButton}
-          onPress={() => router.push('/(auth)/loginwithEmail')}
+          style={styles.googleButton}
+          onPress={handleGoogleSignIn}
           disabled={googleLoading || isDeepLinkProcessing}
         >
-          {isDeepLinkProcessing ?
-            <ActivityIndicator size={"small"} color={'white'} />
+          {(googleLoading)
+            ?
+            <ActivityIndicator size={"small"} color={Colors.primaryBackgroundColor} />
             :
             <>
-              <Foundation
-                name="mail"
-                size={20}
-                color={Colors.primaryBackgroundColor}
-              />
-              <ThemedText type='defaultSemiBold' style={styles.emailText}>
-                {t('auth.continueWithEmail')}
+              <AntDesign name="google" size={22} color={Colors.primaryBackgroundColor} />
+              <ThemedText type='defaultSemiBold' style={styles.googleText}>
+                {t('auth.continueWithGoogle')}
               </ThemedText>
             </>
           }
         </TouchableOpacity>
+
 
         <ThemedText style={styles.footerText}>
           {t('auth.termsAndPrivacy')}
@@ -270,7 +276,8 @@ const styles = StyleSheet.create({
   googleButton: {
     width: '100%',
     height: 52,
-    backgroundColor: Colors.primaryBackgroundColor,
+    borderWidth: 1.5,
+    borderColor: Colors.primaryBackgroundColor,
     borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -280,8 +287,9 @@ const styles = StyleSheet.create({
   },
 
   googleText: {
-    color: '#fff',
     fontSize: 16,
+    color: Colors.primaryBackgroundColor,
+
   },
 
   dividerContainer: {
@@ -303,20 +311,19 @@ const styles = StyleSheet.create({
     color: '#999',
   },
 
-  emailButton: {
+  PhoneButton: {
     width: '100%',
     height: 52,
     borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: Colors.primaryBackgroundColor,
+    backgroundColor: Colors.primaryBackgroundColor,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
   },
 
-  emailText: {
-    color: Colors.primaryBackgroundColor,
+  PhoneText: {
+    color: '#fff',
     fontSize: 16,
   },
 

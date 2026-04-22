@@ -309,7 +309,7 @@ export function useExploreWebRTC() {
             cleanup();
             throw e;
         }
-    }, [socket, waitForConnection, ensurePermissions, getUserMedia, createPeerConnection, cleanup]);
+    }, [socket, waitForConnection, ensurePermissions, getUserMedia, createPeerConnection, cleanup, flushPendingCandidates]);
 
     // Answer explore call (employee side)
     const answerCall = useCallback(async () => {
@@ -317,10 +317,11 @@ export function useExploreWebRTC() {
             if (!incomingCall || !socket || !isConnected) return;
             setError(null);
 
+            await ensurePermissions(incomingCall.callType === 'video');
+
             const latestIncoming = incomingCallRef.current;
             if (!latestIncoming || latestIncoming.callId !== incomingCall.callId || statusRef.current !== 'ringing') return;
 
-            await ensurePermissions(incomingCall.callType === 'video');
 
             callIdRef.current = incomingCall.callId;
             otherUserIdRef.current = incomingCall.callerId;
@@ -415,6 +416,7 @@ export function useExploreWebRTC() {
         };
 
         const onTick = (data: { remainingBalance: number; minutesElapsed: number }) => {
+            if (statusRef.current === 'idle') return;
             setRemainingBalance(data.remainingBalance);
             setMinutesElapsed(data.minutesElapsed);
         };

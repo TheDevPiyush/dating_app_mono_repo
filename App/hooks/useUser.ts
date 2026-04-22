@@ -31,16 +31,22 @@ export const useUser = () => {
                 throw new Error('Supabase user ID is required');
             }
 
-            if (!supabaseUser?.email) {
-                throw new Error('Email is required');
+            if (!supabaseUser?.email && !supabaseUser?.phone) {
+                throw new Error('Either email or phone is required');
             }
 
             // Backend gets user_id, email, phone from verified token
             // Frontend only sends additional metadata
+            const phoneSuffix = supabaseUser.phone ? supabaseUser.phone.slice(-4) : '';
+            const defaultDisplayName =
+                supabaseUser.user_metadata?.full_name ||
+                supabaseUser.email?.split('@')[0] ||
+                (phoneSuffix ? `User${phoneSuffix}` : 'PookieyUser');
+
             const userData = {
-                displayName: supabaseUser.user_metadata?.full_name || supabaseUser.email?.split('@')[0],
+                displayName: defaultDisplayName,
                 photoURL: supabaseUser.user_metadata?.avatar_url,
-                provider: supabaseUser.app_metadata?.provider || 'google',
+                provider: supabaseUser.app_metadata?.provider || (supabaseUser.phone ? 'phone' : 'email'),
             };
 
             const response = await axios.post(createUserAPI, userData, {

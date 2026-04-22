@@ -13,23 +13,24 @@ import CustomBackButton from '@/components/CustomBackButton';
 import CustomDialog, { DialogType } from '@/components/CustomDialog';
 import MainButton from '@/components/MainButton';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Mail } from 'react-native-feather';
+import { Phone } from 'react-native-feather';
 import { useAuth } from '@/hooks/useAuth';
 import CustomLoader from '@/components/CustomLoader';
 import { useDeepLinkProcessing } from '@/hooks/useDeepLinkProcessing';
 import { useTranslation } from 'react-i18next';
 
 const OTP_LENGTH = 6;
+const INDIA_COUNTRY_CODE = '+91';
 
 export default function LoginWithEmail() {
   const { t } = useTranslation();
 
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
-  const [step, setStep] = useState<'EMAIL' | 'OTP'>('EMAIL');
+  const [step, setStep] = useState<'PHONE' | 'OTP'>('PHONE');
   const [statusMessage, setStatusMessage] = useState('');
 
-  const { signInWithLink, verifyEmailOtp, isLoading } = useAuth();
+  const { signInWithPhoneOtp, verifyPhoneOtp, isLoading } = useAuth();
   const isDeepLinkProcessing = useDeepLinkProcessing();
 
   const otpInputRef = useRef<TextInput | null>(null);
@@ -50,10 +51,11 @@ export default function LoginWithEmail() {
     setDialogVisible(true);
   };
 
-  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedPhone = phone.replace(/\D/g, '').slice(0, 10);
+  const fullPhoneNumber = `${INDIA_COUNTRY_CODE}${normalizedPhone}`;
   const isOtpStep = step === 'OTP';
 
-  const validateEmail = () => /\S+@\S+\.\S+/.test(normalizedEmail);
+  const validatePhone = () => /^\d{10}$/.test(normalizedPhone);
 
   useEffect(() => {
     if (isOtpStep) {
@@ -64,12 +66,12 @@ export default function LoginWithEmail() {
   }, [isOtpStep]);
 
   const handleSendOtp = async () => {
-    if (!validateEmail()) {
-      showDialog('error', t('auth.error'), t('auth.enterYourEmail'));
+    if (!validatePhone()) {
+      showDialog('error', t('auth.error'), 'Enter a valid 10-digit mobile number.');
       return;
     }
 
-    const result = await signInWithLink(normalizedEmail);
+    const result = await signInWithPhoneOtp(fullPhoneNumber);
 
     if (result.error) {
       showDialog('error', t('auth.error'), result.error.message);
@@ -78,12 +80,12 @@ export default function LoginWithEmail() {
 
     setOtp('');
     setStep('OTP');
-    setStatusMessage(`Enter the 6-digit code we sent to ${normalizedEmail}.`);
+    setStatusMessage(`Enter the 6-digit code we sent to ${fullPhoneNumber}.`);
 
     showDialog(
       'info',
-      t('auth.checkYourEmail'),
-      `We just emailed a one-time code to ${normalizedEmail}.`
+      'Check your phone',
+      `We sent a one-time code to ${fullPhoneNumber}.`
     );
   };
 
@@ -93,7 +95,7 @@ export default function LoginWithEmail() {
       return;
     }
 
-    const result = await verifyEmailOtp(normalizedEmail, otp);
+    const result = await verifyPhoneOtp(fullPhoneNumber, otp);
 
     if (result.error) {
       showDialog('error', t('auth.error'), result.error.message);
@@ -108,8 +110,8 @@ export default function LoginWithEmail() {
     handleSendOtp();
   };
 
-  const handleUseDifferentEmail = () => {
-    setStep('EMAIL');
+  const handleUseDifferentPhone = () => {
+    setStep('PHONE');
     setOtp('');
     setStatusMessage('');
   };
@@ -117,6 +119,11 @@ export default function LoginWithEmail() {
   const handleOtpChange = (value: string) => {
     const numbersOnly = value.replace(/\D/g, '');
     setOtp(numbersOnly.slice(0, OTP_LENGTH));
+  };
+
+  const handlePhoneChange = (value: string) => {
+    const numbersOnly = value.replace(/\D/g, '');
+    setPhone(numbersOnly.slice(0, 10));
   };
 
   const handlePrimaryAction = () => {
@@ -155,35 +162,38 @@ export default function LoginWithEmail() {
       >
         <View style={styles.content}>
           <ThemedText type="title" style={styles.mainHeading}>
-            {isOtpStep ? t('auth.checkYourEmail') : t('auth.signInWithEmail')}
+            {isOtpStep ? 'Check your phone' : 'Sign In with Phone'}
           </ThemedText>
 
           <ThemedText type="default" style={styles.subHeading}>
             {isOtpStep
               ? statusMessage ||
-              `Enter the 6-digit code we sent to ${normalizedEmail}.`
-              : t('auth.secureLinkMessage')}
+              `Enter the 6-digit code we sent to ${fullPhoneNumber}.`
+              : 'We will send a one-time code to your phone number.'}
           </ThemedText>
 
-          {/* Email Input */}
+          {/* Phone Input */}
           {!isOtpStep && (
             <View style={styles.inputContainer}>
-              <Mail
+              <Phone
                 color={Colors.iconsColor}
                 style={styles.inputIcon}
                 width={20}
                 height={20}
               />
+              <ThemedText style={styles.countryCodeText}>{INDIA_COUNTRY_CODE}</ThemedText>
               <TextInput
                 style={styles.textInput}
-                placeholder={t('auth.enterYourEmail')}
+                placeholder="10-digit mobile number"
                 placeholderTextColor={Colors.text?.secondary}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
+                value={phone}
+                onChangeText={handlePhoneChange}
+                keyboardType="phone-pad"
+                maxLength={10}
                 autoCapitalize="none"
                 autoCorrect={false}
-                textContentType="emailAddress"
+                textContentType="telephoneNumber"
+                autoComplete="tel-national"
               />
             </View>
           )}
@@ -230,9 +240,9 @@ export default function LoginWithEmail() {
 
               <View style={styles.helperStack}>
                 <View style={styles.helperRow}>
-                  <TouchableOpacity onPress={handleUseDifferentEmail}>
+                  <TouchableOpacity onPress={handleUseDifferentPhone}>
                     <ThemedText type="default" style={styles.changeEmailText}>
-                      Change email
+                      Change phone
                     </ThemedText>
                   </TouchableOpacity>
 
@@ -319,6 +329,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.titleColor,
     paddingVertical: 16,
+    fontFamily: 'HellixMedium',
+  },
+  countryCodeText: {
+    color: Colors.text?.secondary,
+    marginRight: 8,
+    fontSize: 16,
     fontFamily: 'HellixMedium',
   },
   footer: {

@@ -57,8 +57,8 @@ export const createUser = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, message: "Supabase ID is required" });
         }
 
-        if (!email) {
-            return res.status(400).json({ success: false, message: "Email is required" });
+        if (!email && !phoneNumber) {
+            return res.status(400).json({ success: false, message: "Email or Phone is required" });
         }
 
         // First check if user already exists with this user_id

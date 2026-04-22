@@ -24,8 +24,8 @@ export default function PremiumImageSelectorScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { photos, setPhotos } = useOnboardingStore();
-  const [selectedImages, setSelectedImages] = useState<string[]>([]);
-  const [selectedImageMimeTypes, setSelectedImageMimeTypes] = useState<string[]>([]);
+  const [selectedImages, setSelectedImages] = useState<(string | null)[]>(Array(6).fill(null));
+  const [selectedImageMimeTypes, setSelectedImageMimeTypes] = useState<string[]>(Array(6).fill('image/jpeg'));
   const [isLoading, setIsLoading] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [dialogVisible, setDialogVisible] = useState(false);
@@ -55,24 +55,34 @@ export default function PremiumImageSelectorScreen() {
   // Load existing photos from store on component mount
   useEffect(() => {
     if (photos && photos.length > 0) {
-      setSelectedImages(photos);
-      // Set default mime type for existing photos
-      setSelectedImageMimeTypes(photos.map(() => 'image/jpeg'));
+      const slots = Array(6).fill(null) as (string | null)[];
+      const mimeSlots = Array(6).fill('image/jpeg');
+      photos.slice(0, 6).forEach((photo, index) => {
+        slots[index] = photo;
+        mimeSlots[index] = 'image/jpeg';
+      });
+      setSelectedImages(slots);
+      setSelectedImageMimeTypes(mimeSlots);
     }
   }, [photos]);
 
   const handleupload = async () => {
     try {
       if (!Array.isArray(photos) || photos.length === 0) {
+        const filledImages = selectedImages
+          .map((uri, index) => ({ uri, mimeType: selectedImageMimeTypes[index] }))
+          .filter(item => !!item.uri) as { uri: string; mimeType: string }[];
+
+        if (filledImages.length === 0) return;
 
         // Step 1: Compress all images
-        const compressedImages = [];
-        const compressedMimeTypes = [];
+        const compressedImages: string[] = [];
+        const compressedMimeTypes: string[] = [];
 
-        for (let i = 0; i < selectedImages.length; i++) {
+        for (let i = 0; i < filledImages.length; i++) {
           try {
             const compressed = await compressImageToJPEG(
-              selectedImages[i],
+              filledImages[i].uri,
               0.8  // Good quality for profile photos
             );
 
@@ -80,14 +90,14 @@ export default function PremiumImageSelectorScreen() {
             compressedMimeTypes.push(compressed.mimeType);
 
             // Log compression stats
-            const originalInfo = await FileSystem.getInfoAsync(selectedImages[i]);
+            const originalInfo = await FileSystem.getInfoAsync(filledImages[i].uri);
             if (originalInfo.exists && compressed.size) {
               const originalSize = (originalInfo as any).size;
               const compressionRatio = ((1 - compressed.size / originalSize) * 100).toFixed(1);
             }
           } catch (compressionError) {
-            compressedImages.push(selectedImages[i]);
-            compressedMimeTypes.push(selectedImageMimeTypes[i]);
+            compressedImages.push(filledImages[i].uri);
+            compressedMimeTypes.push(filledImages[i].mimeType);
           }
         }
 
@@ -120,7 +130,7 @@ export default function PremiumImageSelectorScreen() {
 
         // Step 5: Clean up temporary compressed files
         for (let i = 0; i < compressedImages.length; i++) {
-          if (compressedImages[i] !== selectedImages[i]) {
+          if (compressedImages[i] !== filledImages[i].uri) {
             try {
               await FileSystem.deleteAsync(compressedImages[i], { idempotent: true });
             } catch (cleanupError) {
@@ -132,7 +142,7 @@ export default function PremiumImageSelectorScreen() {
     }
   }
 
-  const pickImages = async () => {
+  const pickImageForSlot = async (slotIndex: number) => {
     try {
       setIsLoading(true);
 
@@ -145,19 +155,26 @@ export default function PremiumImageSelectorScreen() {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: 'images',
-        allowsMultipleSelection: true,
+        allowsMultipleSelection: false,
         quality: 1,
-        allowsEditing: false,
-        selectionLimit: 6 - selectedImages.length,
+        allowsEditing: true,
+        aspect: [4, 5],
       });
 
 
 
       if (!result.canceled && result.assets) {
-        const newImages = result.assets.map(asset => asset.uri);
-        const newMimeTypes = result.assets.map(asset => asset.mimeType || 'image/jpeg');
-        setSelectedImages(prev => [...prev, ...newImages].slice(0, 6));
-        setSelectedImageMimeTypes(prev => [...prev, ...newMimeTypes].slice(0, 6));
+        const chosenImage = result.assets[0];
+        setSelectedImages(prev => {
+          const next = [...prev];
+          next[slotIndex] = chosenImage.uri;
+          return next;
+        });
+        setSelectedImageMimeTypes(prev => {
+          const next = [...prev];
+          next[slotIndex] = chosenImage.mimeType || 'image/jpeg';
+          return next;
+        });
 
         // Success animation feedback
         Animated.sequence([
@@ -194,37 +211,40 @@ export default function PremiumImageSelectorScreen() {
       }),
     ]).start();
 
-    const newSelectedImages = selectedImages.filter((_, i) => i !== index);
-    const newSelectedImageMimeTypes = selectedImageMimeTypes.filter((_, i) => i !== index);
-
+    const newSelectedImages = [...selectedImages];
+    const newSelectedImageMimeTypes = [...selectedImageMimeTypes];
+    newSelectedImages[index] = null;
+    newSelectedImageMimeTypes[index] = 'image/jpeg';
     setSelectedImages(newSelectedImages);
     setSelectedImageMimeTypes(newSelectedImageMimeTypes);
-
-    // Update the store with the remaining images
-    setPhotos(newSelectedImages);
+    setPhotos(newSelectedImages.filter(Boolean) as string[]);
   };
 
   const handleContinue = () => {
-    if (selectedImages.length === 6) {
+    if (selectedImages.every(Boolean)) {
       router.push('/(onboarding)/notification');
     } else {
-      pickImages();
+      const firstEmpty = selectedImages.findIndex(image => !image);
+      if (firstEmpty >= 0) {
+        pickImageForSlot(firstEmpty);
+      }
     }
   };
 
-  const remainingImages = 6 - selectedImages.length;
-  const isComplete = selectedImages.length === 6;
-  const progressPercentage = (selectedImages.length / 6) * 100;
+  const filledCount = selectedImages.filter(Boolean).length;
+  const remainingImages = 6 - filledCount;
+  const isComplete = filledCount === 6;
+  const progressPercentage = (filledCount / 6) * 100;
 
-  const renderImageCard = (index: number) => {
+  const renderImageCard = (index: number, isPrimary = false) => {
     const imageUri = selectedImages[index];
-    const isEmpty = !imageUri;
 
     return (
       <Animated.View
         key={index}
         style={[
           styles.imageCard,
+          isPrimary && styles.primaryImageCard,
           {
             opacity: fadeAnim,
             transform: [
@@ -240,7 +260,7 @@ export default function PremiumImageSelectorScreen() {
       >
         <TouchableOpacity
           style={styles.cardTouchable}
-          onPress={imageUri ? () => removeImage(index) : pickImages}
+          onPress={() => pickImageForSlot(index)}
           activeOpacity={0.7}
         >
           {imageUri ? (
@@ -260,7 +280,12 @@ export default function PremiumImageSelectorScreen() {
                 </View>
               </TouchableOpacity>
               <View style={styles.imageNumberBadge}>
-                <ThemedText style={styles.imageNumberText}>{index + 1}</ThemedText>
+                <ThemedText style={styles.imageNumberText}>
+                  {isPrimary ? 'P' : index + 1}
+                </ThemedText>
+              </View>
+              <View style={styles.editBadge}>
+                <ThemedText style={styles.editBadgeText}>Change</ThemedText>
               </View>
             </View>
           ) : (
@@ -268,7 +293,9 @@ export default function PremiumImageSelectorScreen() {
               <View style={styles.addIconContainer}>
                 <MaterialCommunityIcons name="plus" size={28} color={Colors.primaryBackgroundColor} />
               </View>
-              <ThemedText style={styles.addText}>{t('image.addPhoto')}</ThemedText>
+              <ThemedText style={styles.addText}>
+                {isPrimary ? 'Add Primary' : t('image.addPhoto')}
+              </ThemedText>
             </View>
           )}
         </TouchableOpacity>
@@ -303,7 +330,7 @@ export default function PremiumImageSelectorScreen() {
         <View style={styles.progressContainer}>
           <View style={styles.progressLabels}>
             <ThemedText style={styles.progressText}>
-              {selectedImages.length}/6 {t('image.photos')}
+              {filledCount}/6 {t('image.photos')}
             </ThemedText>
             <ThemedText style={styles.progressPercentage}>
               {Math.round(progressPercentage)}%
@@ -328,8 +355,19 @@ export default function PremiumImageSelectorScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.imageGrid}>
-          {Array.from({ length: 6 }, (_, index) => renderImageCard(index))}
+        <View style={styles.primarySection}>
+          <ThemedText style={styles.primaryLabel}>Primary photo</ThemedText>
+          <ThemedText style={styles.primaryHint}>
+            This is shown first on your profile card
+          </ThemedText>
+          {renderImageCard(0, true)}
+        </View>
+
+        <View style={styles.gallerySection}>
+          <ThemedText style={styles.galleryLabel}>Gallery photos</ThemedText>
+          <View style={styles.imageGrid}>
+            {Array.from({ length: 5 }, (_, idx) => renderImageCard(idx + 1))}
+          </View>
         </View>
       </ScrollView>
 
@@ -364,24 +402,23 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingBottom: 32,
+    paddingBottom: 12,
   },
   header: {
     paddingHorizontal: 24,
     paddingTop: 16,
-    paddingBottom: 32,
+    paddingBottom: 10,
     backgroundColor: '#FAFBFC',
   },
   titleContainer: {
     alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: 13,
   },
   title: {
     textAlign: 'left',
-    marginBottom: 12,
+    marginBottom: 10,
     color: '#1A1A1A',
     fontSize: 28,
-    fontWeight: '700',
     letterSpacing: -0.5,
   },
   titleUnderline: {
@@ -395,11 +432,10 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     color: '#6B7280',
     lineHeight: 26,
-    marginBottom: 32,
-    fontWeight: '400',
+    marginBottom: 15,
   },
   progressContainer: {
-    marginBottom: 24,
+    marginBottom: 1,
   },
   progressLabels: {
     flexDirection: 'row',
@@ -410,12 +446,10 @@ const styles = StyleSheet.create({
   progressText: {
     fontSize: 15,
     color: '#374151',
-    fontWeight: '600',
   },
   progressPercentage: {
     fontSize: 15,
     color: Colors.primaryBackgroundColor,
-    fontWeight: '700',
   },
   progressBarBackground: {
     width: '100%',
@@ -435,6 +469,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 16,
   },
+  primarySection: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  primaryLabel: {
+    fontSize: 18,
+    color: '#111827',
+    marginBottom: 4,
+  },
+  primaryHint: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  gallerySection: {
+    marginTop: 4,
+  },
+  galleryLabel: {
+    fontSize: 16,
+    color: '#111827',
+    marginBottom: 12,
+  },
   imageCard: {
     width: CARD_SIZE,
     height: CARD_SIZE,
@@ -451,6 +508,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F3F4F6',
   },
+  primaryImageCard: {
+    width: screenWidth * 0.46,
+    height: screenWidth * 0.58,
+  },
   cardTouchable: {
     flex: 1,
   },
@@ -465,7 +526,7 @@ const styles = StyleSheet.create({
   },
   imageOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.02)',
+    backgroundColor: 'rgba(0,0,0,0.08)',
     borderRadius: 15,
   },
   removeButton: {
@@ -506,8 +567,20 @@ const styles = StyleSheet.create({
   },
   imageNumberText: {
     fontSize: 11,
-    fontWeight: '700',
     color: '#374151',
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(17,24,39,0.8)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  editBadgeText: {
+    fontSize: 11,
+    color: '#FFFFFF',
   },
   emptyCard: {
     flex: 1,
@@ -535,7 +608,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     textAlign: 'center',
-    fontWeight: '500',
   },
   buttonContainer: {
     paddingHorizontal: 24,

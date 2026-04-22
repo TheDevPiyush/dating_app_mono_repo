@@ -72,7 +72,7 @@ export default function TabLayout() {
   }, [])
 
 
-  const TAB_ICON = 20
+  const TAB_ICON = 23
 
   return (
     <Tabs

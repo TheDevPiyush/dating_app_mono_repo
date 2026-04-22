@@ -26,6 +26,7 @@ export interface ExploreEmployee {
         isAudioCallAllowed?: boolean;
         workingHourStart?: Date | null;
         workingHourEnd?: Date | null;
+        language?: string
     };
 }
 

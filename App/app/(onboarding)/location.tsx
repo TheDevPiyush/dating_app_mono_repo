@@ -8,7 +8,7 @@ import { useUser } from '@/hooks/useUser';
 import { useAuthStore } from '@/store/authStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { RelativePathString, router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     InteractionManager,
@@ -19,6 +19,7 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { deepLinkState } from '@/utils/deepLinkState';
 import { useTranslation } from 'react-i18next';
+import { StringNode } from 'tailwindcss/src/value-parser';
 
 
 export default function LocationScreen() {
@@ -142,7 +143,7 @@ export default function LocationScreen() {
                         );
                         if (parent) initialRoute = parent;
                     }
-                    router.replace(initialRoute);
+                    router.replace(initialRoute as RelativePathString);
                     InteractionManager.runAfterInteractions(() => {
                         setTimeout(() => {
                             router.push(pendingDeeplink as any);
@@ -187,7 +188,7 @@ export default function LocationScreen() {
                 <View style={styles.content}>
 
                     <View style={styles.locationHeader}>
-                        <ThemedText type="subtitle">
+                        <ThemedText type="title">
                             {address || t('location.currentLocation')}
                         </ThemedText>
                     </View>

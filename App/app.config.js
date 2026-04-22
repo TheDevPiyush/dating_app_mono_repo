@@ -12,7 +12,7 @@ export default {
     newArchEnabled: false,
     platforms: ["ios", "android"],
     notification: {
-      icon: "./assets/images/icon.png",
+      icon: "./assets/images/notification.png",
       color: "#ffffff",
     },
     ios: {

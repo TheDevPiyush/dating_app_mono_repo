@@ -114,6 +114,11 @@ export default function ExploreScreen() {
         return employee.girlEmployDetails?.employeLocation?.trim() || ''
     }
 
+    const getEmployeeLanuage = (employee: ExploreEmployee) => {
+        return employee.girlEmployDetails?.language?.trim() || ''
+    }
+
+
     // Filter employees by call type
     const audioEmployees = employees.filter(
         e => !!e.girlEmployDetails?.isAvailableForCall && !!e.girlEmployDetails?.isAudioCallAllowed
@@ -144,10 +149,23 @@ export default function ExploreScreen() {
                     <ThemedText type="defaultSemiBold" style={styles.name} numberOfLines={1}>
                         {item.profile?.firstName || item.displayName || 'Employee'}
                     </ThemedText>
-                    <ThemedText style={styles.statusLabel}>
-                        {isOnline ? 'Online' : 'Offline'}
-                        {getEmployeeLocation(item) ? ` • ${getEmployeeLocation(item)}` : ''}
-                    </ThemedText>
+                    <View style={styles.statusRow}>
+                        <ThemedText style={[styles.statusLabel, isOnline ? styles.onlineText : styles.offlineText]}>
+                            {isOnline ? 'Online' : 'Offline'}
+                        </ThemedText>
+                        {getEmployeeLocation(item) ? (
+                            <>
+                                <ThemedText style={styles.statusLabel}> • </ThemedText>
+                                <ThemedText style={[styles.statusLabel, styles.locationText]}>
+                                    {getEmployeeLocation(item)}
+                                </ThemedText>
+                                <ThemedText style={styles.statusLabel}> • </ThemedText>
+                                <ThemedText style={[styles.statusLabel, styles.languageText]}>
+                                    {getEmployeeLanuage(item)}
+                                </ThemedText>
+                            </>
+                        ) : null}
+                    </View>
                 </View>
 
                 <TouchableOpacity
@@ -210,7 +228,7 @@ export default function ExploreScreen() {
         <SafeAreaView style={styles.container} edges={['top']}>
             {/* Header */}
             <View style={styles.header}>
-                <ThemedText type="title" style={styles.headerTitle}>Explore</ThemedText>
+                <ThemedText type="title" style={styles.headerTitle}>Pookiey Connect</ThemedText>
                 <TouchableOpacity
                     style={styles.balanceChip}
                     onPress={() => router.push('/(home)/rechargeScreen' as any)}
@@ -236,11 +254,6 @@ export default function ExploreScreen() {
                             <ThemedText style={[styles.tabText, activeTabIndex === 0 && styles.tabTextActive]}>
                                 Audio Call
                             </ThemedText>
-                            {audioEmployees.length > 0 && (
-                                <View style={styles.badge}>
-                                    <ThemedText style={styles.badgeText}>{audioEmployees.length}</ThemedText>
-                                </View>
-                            )}
                         </View>
                     </TouchableOpacity>
 
@@ -254,11 +267,6 @@ export default function ExploreScreen() {
                             <ThemedText style={[styles.tabText, activeTabIndex === 1 && styles.tabTextActive]}>
                                 Video Call
                             </ThemedText>
-                            {videoEmployees.length > 0 && (
-                                <View style={styles.badge}>
-                                    <ThemedText style={styles.badgeText}>{videoEmployees.length}</ThemedText>
-                                </View>
-                            )}
                         </View>
                     </TouchableOpacity>
 
@@ -501,5 +509,24 @@ const styles = StyleSheet.create({
     callBtnDisabled: {
         borderColor: Colors.text.tertiary,
         opacity: 0.5,
+    },
+
+    statusRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        marginTop: 2,
+    },
+    onlineText: {
+        color: '#34C759',
+    },
+    offlineText: {
+        color: '#aaa',
+    },
+    locationText: {
+        color: '#F59E0B',
+    },
+    languageText: {
+        color: '#6495ED',
     },
 })

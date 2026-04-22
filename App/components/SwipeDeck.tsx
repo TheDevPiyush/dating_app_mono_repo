@@ -163,7 +163,6 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
                     tint="dark"
                     style={styles.gradient}
                 >
-                    {/* Semi-transparent overlay to enhance blur visibility */}
                     <LinearGradient
                         colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.1)', 'rgba(0, 0, 0, 0.25)']}
                         start={{ x: 0, y: 0 }}
@@ -305,10 +304,12 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
                             onSwiped?.(card, 'up');
                         }
                     }}
-                    stackSize={3}
-                    useViewOverflow={false}
+                    stackSize={4}
+                    useViewOverflow={true}
                     backgroundColor="transparent"
-                    marginBottom={insets.bottom + 170}
+                    marginBottom={insets.bottom + 20}      
+                    stackSeparation={-30}            
+                    stackScale={4}   
                     overlayLabels={{
                         left: {
                             element: (

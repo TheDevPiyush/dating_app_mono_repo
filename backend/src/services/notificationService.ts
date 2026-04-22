@@ -1,5 +1,5 @@
 /* -------------------------------------------------------
-   Generic Expo push sender — used by all notification helpers
+    Generic Expo push sender — used by all notification helpers
 -------------------------------------------------------- */
 interface PushPayload {
   expo_tokens: string[];
@@ -8,6 +8,7 @@ interface PushPayload {
   data?: Record<string, unknown>;
   sound?: string;
   channelId?: string;
+  richContent?: { image: string }
 }
 
 export async function sendPushNotification({
@@ -29,6 +30,7 @@ export async function sendPushNotification({
     data,
   }));
 
+  console.log(messages)
   const response = await fetch('https://exp.host/--/api/v2/push/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -45,7 +47,7 @@ export async function sendPushNotification({
 }
 
 /* -------------------------------------------------------
-   Message notification
+    Message notification
 -------------------------------------------------------- */
 export async function sendMessageNotification({
   matchId,
@@ -92,12 +94,12 @@ export async function sendMessageNotification({
       messageText: messageText || '',
       messageType: messageType || 'text',
       route: '/(home)/chatRoom',
-    },
+    }
   });
 }
 
 /* -------------------------------------------------------
-   Story like notification
+    Story like notification
 -------------------------------------------------------- */
 export async function sendStoryLikeNotification({
   likerName,

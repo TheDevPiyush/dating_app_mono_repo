@@ -42,8 +42,8 @@ interface AuthActions {
   getNotificationTokens: () => string[];
   setNotificationTokens: (tokens: string[]) => void;
 
-  signInWithLink: (email: string) => Promise<{ data: any; error: AuthError | null }>;
-  verifyEmailOtp: (email: string, token: string) => Promise<{ data: any; error: AuthError | null }>;
+  signInWithPhoneOtp: (phone: string) => Promise<{ data: any; error: AuthError | null }>;
+  verifyPhoneOtp: (phone: string, token: string) => Promise<{ data: any; error: AuthError | null }>;
   signOut: () => Promise<void>;
 
   setupAuthListener: () => void;
@@ -129,10 +129,10 @@ export const useAuthStore = create<AuthStore>()(
 
       setNotificationTokens: (tokens: string[]) => set({ notificationTokens: tokens }),
 
-      signInWithLink: async (email: string) => {
+      signInWithPhoneOtp: async (phone: string) => {
         try {
           set({ isLoading: true });
-          const { data, error } = await supabase.auth.signInWithOtp({ email });
+          const { data, error } = await supabase.auth.signInWithOtp({ phone });
           if (error) throw error;
           return { data, error: null };
         } catch (error) {
@@ -142,13 +142,13 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      verifyEmailOtp: async (email: string, token: string) => {
+      verifyPhoneOtp: async (phone: string, token: string) => {
         try {
           set({ isLoading: true });
           const { data, error } = await supabase.auth.verifyOtp({
-            email,
+            phone,
             token,
-            type: 'email',
+            type: 'sms',
           });
           if (error) throw error;
           return { data, error: null };

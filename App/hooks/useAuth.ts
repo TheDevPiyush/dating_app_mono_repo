@@ -28,8 +28,8 @@ export function useAuth() {
     setNotificationTokens,
 
     // Supabase auth methods
-    signInWithLink,
-    verifyEmailOtp,
+    signInWithPhoneOtp,
+    verifyPhoneOtp,
     signOut,
   } = useAuthStore();
 
@@ -61,8 +61,8 @@ export function useAuth() {
     setNotificationTokens,
 
     // Supabase auth methods
-    signInWithLink,
-    verifyEmailOtp,
+    signInWithPhoneOtp,
+    verifyPhoneOtp,
     signOut,
   };
 }

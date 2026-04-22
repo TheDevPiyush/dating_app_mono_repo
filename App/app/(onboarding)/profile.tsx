@@ -19,7 +19,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import CustomDatePicker from '@/components/CustomDatePicker';
 import { Ionicons } from '@expo/vector-icons';
 import { requestPresignedURl, uploadTos3 } from '@/hooks/uploadTos3';
 import { compressImageToJPEG } from '@/utils/imageCompression';
@@ -35,9 +34,63 @@ export default function ProfileScreen() {
   const { fullName, setFullName, birthday, setBirthday, profilePicture, setProfilePicture } = useOnboardingStore();
   const { dbUser, idToken, setDBUser } = useAuthStore();
   const { updateUser, getUser } = useUser();
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [tempDate, setTempDate] = useState(birthday ? new Date(birthday) : new Date());
+  const [birthdayInput, setBirthdayInput] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const birthdayInputRef = React.useRef<TextInput | null>(null);
+
+  const convertIsoToBirthdayDigits = (isoDate: string) => {
+    const date = new Date(isoDate);
+    if (Number.isNaN(date.getTime())) return '';
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear());
+    return `${day}${month}${year}`;
+  };
+
+  const isValidDate = (day: number, month: number, year: number) => {
+    if (year < 1900 || month < 1 || month > 12 || day < 1 || day > 31) {
+      return false;
+    }
+
+    const candidate = new Date(year, month - 1, day);
+    return (
+      candidate.getFullYear() === year &&
+      candidate.getMonth() === month - 1 &&
+      candidate.getDate() === day
+    );
+  };
+
+  const handleBirthdayInputChange = (value: string) => {
+    const numericValue = value.replace(/\D/g, '').slice(0, 8);
+    setBirthdayInput(numericValue);
+
+    if (numericValue.length !== 8) {
+      setBirthday('');
+      return;
+    }
+
+    const day = Number(numericValue.slice(0, 2));
+    const month = Number(numericValue.slice(2, 4));
+    const year = Number(numericValue.slice(4, 8));
+
+    if (!isValidDate(day, month, year)) {
+      setBirthday('');
+      return;
+    }
+
+    const localDate = new Date(year, month - 1, day);
+    localDate.setHours(12, 0, 0, 0);
+    setBirthday(localDate.toISOString());
+  };
+
+  useEffect(() => {
+    if (birthday) {
+      setBirthdayInput(convertIsoToBirthdayDigits(birthday));
+      return;
+    }
+    setBirthdayInput('');
+  }, [birthday, setBirthday]);
+
   const [uploadedPhotoURL, setUploadedPhotoURL] = useState<string | null>(null);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [dialogConfig, setDialogConfig] = useState<{
@@ -108,6 +161,7 @@ export default function ProfileScreen() {
 
   const [firstName, setFirstName] = useState(getInitialFirstName());
   const [lastName, setLastName] = useState(getInitialLastName());
+  const [heightFt, setHeightFt] = useState('');
 
   // Initialize profile picture from provider if available (only once)
   useEffect(() => {
@@ -161,21 +215,15 @@ export default function ProfileScreen() {
     router.push('/(onboarding)/referral');
   };
 
-  const handleBirthdayChange = (selectedDate: Date) => {
-    setTempDate(selectedDate);
-    setBirthday(selectedDate.toISOString());
-    setShowDatePicker(false);
-  };
-
-  const formatDate = (dateString: any) => {
-    if (!dateString) return t('profile.chooseBirthday');
-
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+  const handleHeightChange = (value: string) => {
+    const sanitized = value.replace(/[^0-9.]/g, '');
+    const [wholePart, ...decimalParts] = sanitized.split('.');
+    const decimalPart = decimalParts.join('');
+    const normalized =
+      decimalParts.length > 0
+        ? `${wholePart.slice(0, 1)}.${decimalPart.slice(0, 2)}`
+        : wholePart.slice(0, 1);
+    setHeightFt(normalized);
   };
 
   const uploadProfilePicture = async (imageUri: string) => {
@@ -420,20 +468,63 @@ export default function ProfileScreen() {
                 <ThemedText type='default' style={styles.inputLabel}>{t('profile.birthday')}</ThemedText>
                 <TouchableOpacity
                   style={styles.birthdayButton}
-                  onPress={() => setShowDatePicker(true)}
+                  activeOpacity={0.9}
+                  onPress={() => birthdayInputRef.current?.focus()}
                 >
-                  <View style={styles.birthdayContent}>
-                    <View style={styles.calendarIconContainer}>
-                      <Ionicons name="calendar" size={20} color={Colors.primaryBackgroundColor} />
-                    </View>
-                    <ThemedText type='default' style={[
-                      styles.birthdayText,
-                      birthday && styles.birthdayTextSelected
-                    ]}>
-                      {formatDate(birthday)}
-                    </ThemedText>
+                  <View style={styles.birthdaySlots}>
+                    {Array.from({ length: 8 }, (_, index) => {
+                      const slotChar = birthdayInput[index] || '';
+                      const isActive = index === birthdayInput.length;
+                      const isFilled = !!slotChar;
+
+                      return (
+                        <React.Fragment key={index}>
+                          {(index === 2 || index === 4) && (
+                            <ThemedText style={styles.birthdaySlash}>/</ThemedText>
+                          )}
+                          <View
+                            style={[
+                              styles.birthdayDigitBox,
+                              isFilled && styles.birthdayDigitBoxFilled,
+                              isActive && styles.birthdayDigitBoxActive,
+                            ]}
+                          >
+                            <ThemedText style={styles.birthdayDigitText}>
+                              {slotChar || ''}
+                            </ThemedText>
+                          </View>
+                        </React.Fragment>
+                      );
+                    })}
                   </View>
                 </TouchableOpacity>
+                <TextInput
+                  ref={birthdayInputRef}
+                  style={styles.hiddenBirthdayInput}
+                  value={birthdayInput}
+                  onChangeText={handleBirthdayInputChange}
+                  keyboardType="number-pad"
+                  maxLength={8}
+                  textContentType="none"
+                />
+              </View>
+
+              <View style={styles.inputWrapper}>
+                <ThemedText type='default' style={styles.inputLabel}>Height</ThemedText>
+                <View style={styles.heightInputContainer}>
+                  <TextInput
+                    style={styles.heightInput}
+                    value={heightFt}
+                    onChangeText={handleHeightChange}
+                    placeholder="5.8"
+                    placeholderTextColor={Colors.text.tertiary}
+                    keyboardType="decimal-pad"
+                    maxLength={4}
+                  />
+                  <ThemedText type='default' style={styles.heightSuffix}>
+                    ft
+                  </ThemedText>
+                </View>
               </View>
             </View>
 
@@ -444,13 +535,6 @@ export default function ProfileScreen() {
           </View>
         </ScrollView>
 
-        <CustomDatePicker
-          visible={showDatePicker}
-          value={tempDate}
-          maximumDate={new Date()}
-          onConfirm={handleBirthdayChange}
-          onCancel={() => setShowDatePicker(false)}
-        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -575,7 +659,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   textInput: {
-    backgroundColor: '#F8F8F8',
+    // backgroundColor: '#F8F8F8',
     borderWidth: 1,
     borderColor: '#E8E8E8',
     borderRadius: 12,
@@ -583,31 +667,75 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 16,
     color: Colors.text.primary,
+    fontFamily:"HellixBold"
   },
   birthdayButton: {
-    backgroundColor: '#F8F8F8',
+    // backgroundColor: '#F8F8F8',
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  birthdaySlots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    // justifyContent: 'center',
+  },
+  birthdayDigitBox: {
+    width: 22,
+    borderBottomWidth: 1.25,
+    borderBottomColor: '#CFCFCF',
+    alignItems: 'center',
+    paddingBottom: 4,
+    minHeight: 24,
+  },
+  birthdayDigitBoxFilled: {
+    borderBottomColor: Colors.primaryBackgroundColor,
+  },
+  birthdayDigitBoxActive: {
+    borderBottomColor: Colors.primaryBackgroundColor,
+  },
+  birthdayDigitText: {
+    fontSize: 14,
+    color: Colors.text.primary,
+  },
+  birthdaySlash: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginHorizontal: 3,
+    marginBottom: 4,
+  },
+  birthdayPlaceholder: {
+    marginTop: 6,
+    fontSize: 11,
+    color: Colors.text.tertiary,
+    textAlign: 'center',
+  },
+  hiddenBirthdayInput: {
+    position: 'absolute',
+    opacity: 0,
+    width: '100%',
+    height: 1,
+  },
+  heightInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E8E8E8',
     borderRadius: 12,
-    paddingVertical: 16,
     paddingHorizontal: 16,
+    paddingVertical: 4,
   },
-  birthdayContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  calendarIconContainer: {
-    width: 24,
-    height: 24,
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  birthdayText: {
+  heightInput: {
+    flex: 1,
     fontSize: 16,
-    color: Colors.text.tertiary,
-  },
-  birthdayTextSelected: {
     color: Colors.text.primary,
+    paddingVertical: 12,
+  },
+  heightSuffix: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginLeft: 8,
   },
 });

@@ -83,6 +83,7 @@ export interface IPookieyGirlEmployeeDetails {
     isAvailableForCall?: boolean;
     isVideoCallAllowed?: boolean;
     isAudioCallAllowed?: boolean;
+    language?: string
 }
 
 export interface IUserWallet {
@@ -95,7 +96,7 @@ const UserSchema = new Schema<IUser>(
     {
         user_id: { type: String, required: true, unique: true, index: true },
         referralCode: { type: String, unique: true, sparse: true, index: true },
-        email: { type: String, required: true, unique: true, index: true },
+        email: { type: String, unique: true, index: true },
         phoneNumber: { type: String, unique: true, sparse: true, index: true, },
         displayName: { type: String, default: "" },
         photoURL: { type: String, default: "" },
@@ -189,7 +190,7 @@ const UserSchema = new Schema<IUser>(
             isAvailableForCall: { type: Boolean, default: true },
             isVideoCallAllowed: { type: Boolean, default: false },
             isAudioCallAllowed: { type: Boolean, default: false },
-
+            language: { type: String, default: "Hindi" }
         }
     },
     { timestamps: true }
