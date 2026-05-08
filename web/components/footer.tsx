@@ -77,8 +77,18 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link href="/blogs" className="hover:text-pink-600 transition-colors text-sm">
-                  Blogs
+                <Link href="/terms-and-conditions" className="hover:text-pink-600 transition-colors text-sm">
+                  Terms & Conditions
+                </Link>
+              </li>
+              <li>
+                <Link href="/refund-policy" className="hover:text-pink-600 transition-colors text-sm">
+                  Refund Policy
+                </Link>
+              </li>
+              <li>
+                <Link href="/pricing" className="hover:text-pink-600 transition-colors text-sm">
+                  Pricing
                 </Link>
               </li>
               
@@ -101,8 +111,8 @@ const Footer = () => {
               </li>
               
               <li>
-                <Link href="/support" className="hover:text-pink-600 transition-colors text-sm">
-                  contact
+                <Link href="/contact" className="hover:text-pink-600 transition-colors text-sm">
+                  Contact
                 </Link>
               </li>
             </ul>
@@ -136,7 +146,7 @@ const Footer = () => {
               <a href="https://x.com/PookieyOfficial" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-pink-600 transition-colors" aria-label="Twitter">
                 <TwitterIcon />
               </a>
-              <a href="https://www.instagram.com/pookiey.official/" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-pink-600 transition-colors" aria-label="Instagram">
+              <a href="https://www.instagram.com/pookiey.app/" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-pink-600 transition-colors" aria-label="Instagram">
                 <InstagramIcon />
               </a>
               
@@ -157,8 +167,14 @@ const Footer = () => {
               © {currentYear} Pookiey private Limited. All rights reserved.
             </p>
             <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
+              <Link href="/terms-and-conditions" className="text-xs text-gray-600 hover:text-pink-600 transition-colors">
+                Terms
+              </Link>
               <Link href="/privacy-policy" className="text-xs text-gray-600 hover:text-pink-600 transition-colors">
                 Privacy Policy
+              </Link>
+              <Link href="/refund-policy" className="text-xs text-gray-600 hover:text-pink-600 transition-colors">
+                Refund Policy
               </Link>
             </div>
           </div>

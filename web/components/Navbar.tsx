@@ -21,10 +21,11 @@ interface NavLinkItem {
 }
 
 const NAV_LINKS: NavLinkItem[] = [
+  { href: "/terms-and-conditions", label: "Terms" },
   { href: "/privacy-policy", label: "Privacy Policy" },
+  { href: "/pricing", label: "Pricing" },
   { href: "/about-us", label: "About Us" },
-  { href: "/blogs", label: "Blogs" },
-  { href: "/support", label: "Support" },
+  { href: "/contact", label: "Contact" },
 ];
 
 export default function Navbar({ onMenuClick }: NavbarProps) {
