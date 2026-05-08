@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Contact Us | Pookiey",
   description:
-    "Contact the Pookiey team for support, billing, privacy, or partnership queries.",
+    "Contact the Pookiey team at support@pookiey.com for all queries.",
 };
 
 const contactCards = [
@@ -14,12 +14,12 @@ const contactCards = [
   },
   {
     title: "Billing Help",
-    email: "billing@pookiey.com",
+    email: "support@pookiey.com",
     description: "Refunds, payment failures, and subscription questions.",
   },
   {
     title: "Privacy Requests",
-    email: "privacy@pookiey.com",
+    email: "support@pookiey.com",
     description: "Data access, deletion requests, and privacy concerns.",
   },
 ];

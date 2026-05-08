@@ -55,10 +55,10 @@ export default function RefundPolicyPage() {
           <p className="text-sm leading-relaxed text-[#2A1F2D] md:text-base">
             For payment receipts or billing-related clarifications, contact{" "}
             <a
-              href="mailto:billing@pookiey.com"
+              href="mailto:support@pookiey.com"
               className="font-semibold text-[#E94057] hover:text-[#C3344C]"
             >
-              billing@pookiey.com
+              support@pookiey.com
             </a>
             . Please note this channel does not process refund requests.
           </p>

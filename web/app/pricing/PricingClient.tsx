@@ -1,51 +1,35 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useSessionContext } from "@supabase/auth-helpers-react";
-
 const plans = [
   {
-    name: "Spark",
-    price: "Rs 199",
-    period: "for 15 days",
-    features: ["Priority visibility", "More daily interactions", "Advanced filters"],
+    name: "Basic",
+    price: "₹499.00",
+    period: "30 days",
+    interactions: "35 interactions/day",
+    features: ["35 Swipes Per Day", "1 Spotlight Per Month"],
   },
   {
     name: "Premium",
-    price: "Rs 399",
-    period: "for 30 days",
-    features: [
-      "Everything in Spark",
-      "Top profile boost",
-      "Faster match recommendations",
-    ],
+    price: "₹899.00",
+    period: "90 days",
+    interactions: "50 interactions/day",
+    features: ["50 Swipes Per Day", "Voice Calling to Matched Users"],
     popular: true,
   },
   {
-    name: "Elite",
-    price: "Rs 999",
-    period: "for 90 days",
+    name: "Super",
+    price: "₹1,299.00",
+    period: "180 days",
+    interactions: "75 interactions/day",
     features: [
-      "Everything in Premium",
-      "Highest profile ranking",
-      "Dedicated priority support",
+      "75 Swipes Per Day",
+      "Voice Calling to Matched Users",
+      "Premium Support and profile boost",
     ],
   },
 ];
 
 export default function PricingClient() {
-  const router = useRouter();
-  const { session, isLoading } = useSessionContext();
-
-  const handleCheckoutClick = () => {
-    if (isLoading) return;
-    if (!session) {
-      router.push("/auth");
-      return;
-    }
-    router.push("/dashboard#payment-plans");
-  };
-
   return (
     <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-white via-[#fdf5f7] to-white">
       <div className="pointer-events-none absolute inset-0">
@@ -53,17 +37,16 @@ export default function PricingClient() {
         <div className="absolute right-0 top-0 h-56 w-56 rounded-full bg-[#4B164C]/10 blur-3xl md:h-[320px] md:w-[320px]" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-6xl px-6 py-16 md:px-8">
+      <div className="relative z-10 mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 md:px-8 md:py-16">
         <header className="mb-12 text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#E94057]">
             Premium Plans
           </p>
-          <h1 className="text-4xl font-bold text-[#2A1F2D] md:text-5xl">
+          <h1 className="text-3xl font-bold text-[#2A1F2D] sm:text-4xl md:text-5xl">
             Choose Your Dating Journey
           </h1>
           <p className="mx-auto mt-4 max-w-3xl text-base text-[#6F6077]">
-            Unlock more meaningful conversations, better visibility, and smarter
-            matchmaking with a plan that fits your pace.
+            Explore plans designed for your dating goals.
           </p>
         </header>
 
@@ -84,7 +67,9 @@ export default function PricingClient() {
               )}
               <h2 className="text-2xl font-bold text-[#2A1F2D]">{plan.name}</h2>
               <p className="mt-3 text-3xl font-bold text-[#E94057]">{plan.price}</p>
-              <p className="text-sm text-[#6F6077]">{plan.period}</p>
+              <p className="text-sm text-[#6F6077]">
+                {plan.period} · {plan.interactions}
+              </p>
               <ul className="mt-5 space-y-3 text-sm text-[#2A1F2D]">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex gap-3">
@@ -93,14 +78,6 @@ export default function PricingClient() {
                   </li>
                 ))}
               </ul>
-              <button
-                type="button"
-                onClick={handleCheckoutClick}
-                disabled={isLoading}
-                className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-[#2A1F2D] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#201523] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isLoading ? "Checking account..." : "Continue to Checkout"}
-              </button>
             </article>
           ))}
         </div>
