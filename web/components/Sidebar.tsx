@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { X, Info, Users, HelpCircle, LogIn, LogOut, Rss, ShieldCheck } from "lucide-react";
+import { X, Info, Users, HelpCircle, LogIn, LogOut, ShieldCheck, IndianRupee, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react";
@@ -51,9 +51,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const navigation = [
     { name: "Privacy Policy", href: "/privacy-policy", icon: Info },
+    { name: "Pricing", href: "/pricing", icon: IndianRupee },
     { name: "About Us", href: "/about-us", icon: Users },
+    { name: "Contact", href: "/contact", icon: Mail },
     { name: "Support", href: "/support", icon: HelpCircle },
-    { name: "Blog", href: "/blog", icon: Rss },
   ];
   const adminNavItem = { name: "Admin", href: "/admin", icon: ShieldCheck };
 

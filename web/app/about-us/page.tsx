@@ -84,6 +84,42 @@ const stats = [
   { number: "95%", label: "Satisfaction Rate" },
 ];
 
+const trustPillars = [
+  {
+    title: "Verified Community",
+    description:
+      "Profile verification helps reduce fake accounts and keeps conversations authentic from the first hello.",
+  },
+  {
+    title: "Safety by Design",
+    description:
+      "From reporting tools to proactive moderation, every layer is built to protect users across interactions.",
+  },
+  {
+    title: "Privacy Respect",
+    description:
+      "We focus on secure communication and responsible data handling so members can connect with confidence.",
+  },
+];
+
+const roadmap = [
+  {
+    title: "Today",
+    description:
+      "Deliver a safe and meaningful dating experience with strong moderation and user-first product decisions.",
+  },
+  {
+    title: "Next",
+    description:
+      "Expand compatibility signals and quality matching to make every introduction more relevant and intentional.",
+  },
+  {
+    title: "Future",
+    description:
+      "Build India's most trusted relationship platform that supports lasting connections beyond the first match.",
+  },
+];
+
 // SVG Components
 const HeartSVG = ({ className = "" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none">
@@ -426,6 +462,44 @@ export default function AboutUsPage() {
         </div>
       </section>
 
+      {/* Trust Section */}
+      <section className="relative py-16 md:py-24 overflow-hidden">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12 md:mb-16">
+            <div className="inline-block mb-3">
+              <span className="text-xs sm:text-sm font-semibold tracking-wider uppercase text-[#E94057] opacity-70">
+                Why People Trust Us
+              </span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4">
+              <span className="bg-gradient-to-r from-[#2A1F2D] via-[#E94057] to-[#4b164c] bg-clip-text text-transparent">
+                Built for Real Connections
+              </span>
+            </h2>
+            <p className="text-base md:text-lg text-[#2A1F2D]/60 max-w-2xl mx-auto font-medium">
+              We combine safety, authenticity, and thoughtful product design to help
+              people connect with confidence.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {trustPillars.map((pillar) => (
+              <article
+                key={pillar.title}
+                className="bg-white/90 backdrop-blur-sm rounded-3xl p-6 md:p-8 border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <h3 className="text-xl font-bold text-[#2A1F2D] mb-3">
+                  {pillar.title}
+                </h3>
+                <p className="text-sm md:text-base text-[#2A1F2D]/75 leading-relaxed">
+                  {pillar.description}
+                </p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Mission Section */}
       <section className="relative py-16 md:py-24 overflow-hidden bg-gradient-to-b from-white via-pink-50/30 to-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -470,6 +544,40 @@ export default function AboutUsPage() {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Roadmap Section */}
+      <section className="relative py-16 md:py-24 overflow-hidden bg-gradient-to-b from-white to-pink-50/20">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="inline-block mb-3">
+              <span className="text-xs sm:text-sm font-semibold tracking-wider uppercase text-[#E94057] opacity-70">
+                What We Are Building
+              </span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
+              <span className="bg-gradient-to-r from-[#2A1F2D] via-[#E94057] to-[#4b164c] bg-clip-text text-transparent">
+                Our Product Roadmap
+              </span>
+            </h2>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {roadmap.map((item) => (
+              <article
+                key={item.title}
+                className="relative rounded-3xl border border-white/60 bg-white/90 backdrop-blur-sm p-6 md:p-8 shadow-lg"
+              >
+                <span className="inline-flex mb-4 rounded-full bg-[#E94057]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#E94057]">
+                  {item.title}
+                </span>
+                <p className="text-sm md:text-base text-[#2A1F2D]/75 leading-relaxed">
+                  {item.description}
+                </p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
