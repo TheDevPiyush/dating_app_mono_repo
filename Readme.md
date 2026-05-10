@@ -2,7 +2,7 @@
 
 > This monorepo setup allows devs to run the **backend**, **web**, and **mobile (Expo)** app locally for Pookiey developement — and builds the mobile app using **EAS** when needed.
 
----
+----
 
 ## ⚙️ Commands Overview
 
